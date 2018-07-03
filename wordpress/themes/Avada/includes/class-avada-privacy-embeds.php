@@ -116,7 +116,7 @@ class Avada_Privacy_Embeds {
 			'days'     => '30',
 			'path'     => '/',
 		);
-		$this->cookie_args = $default_args;
+		$this->cookie_args = apply_filters( 'fusion_privacy_cookie_args', $default_args );
 	}
 
 	/**
@@ -138,7 +138,7 @@ class Avada_Privacy_Embeds {
 	 * @return  array
 	 */
 	public function get_cookie_args() {
-		return apply_filters( 'fusion_privacy_cookie_args', $this->cookie_args );
+		return $this->cookie_args;
 	}
 
 	/**
@@ -646,12 +646,12 @@ class Avada_Privacy_Embeds {
 			$html   = '<div class="fusion-privacy-placeholder" ' . $style . ' data-privacy-type="' . $type . '"><div class="fusion-privacy-placeholder-content">';
 
 			/* translators: The placeholder label (embed-type). */
-			$content = sprintf( esc_html__( 'For privacy reasons %s needs your permission to be loaded.', 'fusion-builder' ), $label );
+			$content = sprintf( esc_html__( 'For privacy reasons %s needs your permission to be loaded.', 'Avada' ), $label );
 
 			if ( function_exists( 'get_the_privacy_policy_link' ) ) {
 				$privacy_link  = get_the_privacy_policy_link();
 				/* translators: The link to the privacy page (embed-type). */
-				$content      .= sprintf( __( '  For more details, please see our %s.', 'fusion-builder' ), $privacy_link );
+				$content      .= ' ' . sprintf( esc_html__( 'For more details, please see our %s.', 'Avada' ), $privacy_link );
 			}
 
 			$content = '<div class="fusion-privacy-label">' . $content . '</div>';

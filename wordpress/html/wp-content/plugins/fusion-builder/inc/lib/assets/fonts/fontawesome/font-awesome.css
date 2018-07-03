@@ -1543,6 +1543,9 @@
 .fa-google-drive:before {
   content: "\f3aa";
 }
+.fa-google-play:before {
+  content: "\f3ab";
+}
 .fa-google-plus:before,
 .fa-google-plus-official:before,
 .fa-google-plus-circle:before {
