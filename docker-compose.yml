@@ -1,0 +1,24 @@
+wordpress:
+  image: wordpress
+  links:
+    - wordpress_db:mysql
+  ports:
+    - 8080:80
+  volumes:
+    - ./wordpress/html:/var/www/html
+    - ./wordpress/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    - ./wordpress/themes/Avada:/var/www/html/wp-content/themes/Avada
+    # - ~/repos/wordpress/wp_var:/var
+wordpress_db:
+  image: mariadb
+  environment:
+    MYSQL_ROOT_PASSWORD: Test!23
+phpmyadmin:
+  image: corbinu/docker-phpmyadmin
+  links:
+    - wordpress_db:mysql
+  ports:
+    - 8181:80
+  environment:
+    MYSQL_USERNAME: root
+    MYSQL_ROOT_PASSWORD: Test!23
