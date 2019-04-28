@@ -13,21 +13,29 @@
 class WPSEO_Twitter {
 
 	/**
-	 * @var    object    Instance of this class
+	 * Instance of this class.
+	 *
+	 * @var object
 	 */
 	public static $instance;
 
 	/**
-	 * @var array Images
+	 * Images.
+	 *
+	 * @var array
 	 */
 	private $images = array();
 
 	/**
-	 * @var array Images
+	 * Images.
+	 *
+	 * @var array
 	 */
 	public $shown_images = array();
 
-	/** @var WPSEO_Frontend_Page_Type */
+	/**
+	 * @var WPSEO_Frontend_Page_Type
+	 */
 	protected $frontend_page_type;
 
 	/**
@@ -36,6 +44,20 @@ class WPSEO_Twitter {
 	 * @var string
 	 */
 	private $type;
+
+	/**
+	 * Card types currently allowed by Twitter.
+	 *
+	 * @link https://dev.twitter.com/cards/types
+	 *
+	 * @var array
+	 */
+	private $valid_types = array(
+		'summary',
+		'summary_large_image',
+		'app',
+		'player',
+	);
 
 	/**
 	 * Class constructor
@@ -67,7 +89,11 @@ class WPSEO_Twitter {
 		$this->description();
 		$this->title();
 		$this->site_twitter();
-		$this->image();
+
+		if ( ! post_password_required() ) {
+			$this->image();
+		}
+
 		if ( is_singular() ) {
 			$this->author();
 		}
@@ -122,13 +148,7 @@ class WPSEO_Twitter {
 	 * @link https://dev.twitter.com/cards/types
 	 */
 	private function sanitize_card_type() {
-		if ( ! in_array( $this->type, array(
-			'summary',
-			'summary_large_image',
-			'app',
-			'player',
-		), true )
-		) {
+		if ( ! in_array( $this->type, $this->valid_types, true ) ) {
 			$this->type = 'summary';
 		}
 	}
@@ -174,6 +194,8 @@ class WPSEO_Twitter {
 			$meta_desc = $this->fallback_description();
 		}
 
+		$meta_desc = wpseo_replace_vars( $meta_desc, get_queried_object() );
+
 		/**
 		 * Filter: 'wpseo_twitter_description' - Allow changing the Twitter description as output in the Twitter card by Yoast SEO
 		 *
@@ -207,7 +229,6 @@ class WPSEO_Twitter {
 		return wp_strip_all_tags( get_the_excerpt() );
 	}
 
-
 	/**
 	 * Getting the description for the taxonomy
 	 *
@@ -220,12 +241,11 @@ class WPSEO_Twitter {
 			$meta_desc = $this->fallback_description();
 		}
 
-		if ( is_string( $meta_desc ) || $meta_desc !== '' ) {
+		if ( is_string( $meta_desc ) && $meta_desc !== '' ) {
 			return $meta_desc;
 		}
 
 		return wp_strip_all_tags( term_description() );
-
 	}
 
 	/**
@@ -252,6 +272,8 @@ class WPSEO_Twitter {
 		else {
 			$title = $this->fallback_title();
 		}
+
+		$title = wpseo_replace_vars( $title, get_queried_object() );
 
 		/**
 		 * Filter: 'wpseo_twitter_title' - Allow changing the Twitter title as output in the Twitter card by Yoast SEO
@@ -308,12 +330,27 @@ class WPSEO_Twitter {
 	 * Displays the Twitter account for the site.
 	 */
 	protected function site_twitter() {
+		switch ( WPSEO_Options::get( 'company_or_person', '' ) ) {
+			case 'person':
+				$user_id = (int) WPSEO_Options::get( 'company_or_person_user_id', false );
+				$twitter = get_the_author_meta( 'twitter', $user_id );
+				// For backwards compat reasons, if there is no twitter ID for person, we fall back to site.
+				if ( empty( $twitter ) ) {
+					$twitter = WPSEO_Options::get( 'twitter_site' );
+				}
+				break;
+			case 'company':
+			default:
+				$twitter = WPSEO_Options::get( 'twitter_site' );
+				break;
+		}
+
 		/**
 		 * Filter: 'wpseo_twitter_site' - Allow changing the Twitter site account as output in the Twitter card by Yoast SEO
 		 *
 		 * @api string $unsigned Twitter site account string
 		 */
-		$site = apply_filters( 'wpseo_twitter_site', WPSEO_Options::get( 'twitter_site' ) );
+		$site = apply_filters( 'wpseo_twitter_site', $twitter );
 		$site = $this->get_twitter_id( $site );
 
 		if ( is_string( $site ) && $site !== '' ) {
@@ -327,7 +364,7 @@ class WPSEO_Twitter {
 	 * Solves issues with filters returning urls and theme's/other plugins also adding a user meta
 	 * twitter field which expects url rather than an id (which is what we expect).
 	 *
-	 * @param  string $id Twitter ID or url.
+	 * @param string $id Twitter ID or url.
 	 *
 	 * @return string|bool Twitter ID or false if it failed to get a valid Twitter ID.
 	 */
@@ -395,13 +432,16 @@ class WPSEO_Twitter {
 
 	/**
 	 * Takes care of image output when we only need to display a single image.
+	 *
+	 * @return void
 	 */
 	private function single_image_output() {
 		if ( $this->homepage_image_output() ) {
 			return;
 		}
 
-		if ( $this->posts_page_image_output() ) { // Posts page, which won't be caught by is_singular() below.
+		// Posts page, which won't be caught by is_singular() below.
+		if ( $this->posts_page_image_output() ) {
 			return;
 		}
 
@@ -412,18 +452,19 @@ class WPSEO_Twitter {
 				return;
 			}
 
-			$post_id = get_the_ID();
-
 			if ( $this->image_of_attachment_page_output( $post_id ) ) {
 				return;
 			}
+
 			if ( $this->image_thumbnail_output( $post_id ) ) {
 				return;
 			}
+
 			if ( count( $this->images ) > 0 ) {
 				$this->gallery_images_output();
 				return;
 			}
+
 			if ( $this->image_from_content_output( $post_id ) ) {
 				return;
 			}
@@ -474,16 +515,11 @@ class WPSEO_Twitter {
 	/**
 	 * Outputs a Twitter image tag for a given image
 	 *
-	 * @param string  $img The source URL to the image.
-	 * @param boolean $tag Deprecated argument, previously used for gallery images.
+	 * @param string $img The source URL to the image.
 	 *
 	 * @return bool
 	 */
-	protected function image_output( $img, $tag = false ) {
-
-		if ( $tag ) {
-			_deprecated_argument( __METHOD__, 'WPSEO 2.4' );
-		}
+	protected function image_output( $img ) {
 
 		/**
 		 * Filter: 'wpseo_twitter_image' - Allow changing the Twitter Card image
@@ -587,34 +623,28 @@ class WPSEO_Twitter {
 	}
 
 	/**
-	 * Retrieve the image from the content
+	 * Retrieve the image from the content.
 	 *
 	 * @param int $post_id The post id to extract the images from.
 	 *
-	 * @return bool
+	 * @return bool True when images output succeeded.
 	 */
 	private function image_from_content_output( $post_id ) {
-		/**
-		 * Filter: 'wpseo_pre_analysis_post_content' - Allow filtering the content before analysis
-		 *
-		 * @api string $post_content The Post content string
-		 *
-		 * @param object $post - The post object.
-		 */
-		$post    = get_post( $post_id );
-		$content = apply_filters( 'wpseo_pre_analysis_post_content', $post->post_content, $post );
+		$image_finder = new WPSEO_Content_Images();
+		$images       = $image_finder->get_images( $post_id );
 
-		if ( preg_match_all( '`<img [^>]+>`', $content, $matches ) ) {
-			foreach ( $matches[0] as $img ) {
-				if ( preg_match( '`src=(["\'])(.*?)\1`', $img, $match ) ) {
-					$this->image_output( $match[2] );
-
-					return true;
-				}
-			}
+		if ( ! is_array( $images ) || $images === array() ) {
+			return false;
 		}
 
-		return false;
+		$image_url = reset( $images );
+		if ( ! $image_url ) {
+			return false;
+		}
+
+		$this->image_output( $image_url );
+
+		return true;
 	}
 
 	/**

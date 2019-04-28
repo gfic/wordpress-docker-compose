@@ -71,7 +71,7 @@ jQuery( function( $ ) {
 
 		// No form, cannot do this.
 		if ( $( '.woocommerce-cart-form' ).length === 0 ) {
-			window.location.href = window.location.href;
+			window.location.reload();
 			return;
 		}
 
@@ -83,7 +83,7 @@ jQuery( function( $ ) {
 		if ( $new_form.length === 0 ) {
 			// If the checkout is also displayed on this page, trigger reload instead.
 			if ( $( '.woocommerce-checkout' ).length ) {
-				window.location.href = window.location.href;
+				window.location.reload();
 				return;
 			}
 
@@ -93,8 +93,11 @@ jQuery( function( $ ) {
 
 			// Display errors
 			if ( $notices.length > 0 ) {
-				show_notice( $notices, $( '.cart-empty' ).closest( '.woocommerce' ) );
+				show_notice( $notices );
 			}
+
+			// Notify plugins that the cart was emptied.
+			$( document.body ).trigger( 'wc_cart_emptied' );
 		} else {
 			// If the checkout is also displayed on this page, trigger update event.
 			if ( $( '.woocommerce-checkout' ).length ) {
@@ -125,15 +128,15 @@ jQuery( function( $ ) {
 	};
 
 	/**
-	 * Clear previous notices and shows new one above form.
+	 * Shows new notices on the page.
 	 *
 	 * @param {Object} The Notice HTML Element in string or object form.
 	 */
 	var show_notice = function( html_element, $target ) {
 		if ( ! $target ) {
-			$target = $( '.woocommerce-cart-form' );
+			$target = $( '.woocommerce-notices-wrapper:first' ) || $( '.cart-empty' ).closest( '.woocommerce' ) || $( '.woocommerce-cart-form' );
 		}
-		$target.before( html_element );
+		$target.prepend( html_element );
 	};
 
 

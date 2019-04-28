@@ -141,13 +141,19 @@ class Tribe__Utils__Array {
 	 * Converts a list to an array filtering out empty string elements.
 	 *
 	 * @param     mixed   $value A string representing a list of values separated by the specified separator
-	 *                           or an array.
+	 *                           or an array. If the list is a string (e.g. a CSV list) then it will urldecoded
+	 *                           before processing.
 	 * @param string $sep The char(s) separating the list elements; will be ignored if the list is an array.
 	 *
 	 * @return array An array of list elements.
 	 */
 	public static function list_to_array( $value, $sep = ',' ) {
-		if ( empty( $value ) ) {
+		// since we might receive URL encoded strings for CSV lists let's URL decode them first
+		$value = is_array( $value ) ? $value : urldecode( $value );
+
+		$sep = is_string( $sep ) ? $sep : ',';
+
+		if ( $value === null || $value === '' ) {
 			return array();
 		}
 
@@ -186,5 +192,229 @@ class Tribe__Utils__Array {
 		}
 
 		return $list;
+	}
+
+	/**
+	 * Sanitize a multidimensional array.
+	 *
+	 * @since   4.7.18
+	 *
+	 * @param array $data The array to sanitize.
+	 *
+	 * @return array The sanitized array
+	 *
+	 * @link https://gist.github.com/esthezia/5804445
+	 */
+	public static function escape_multidimensional_array( $data = array() ) {
+
+		if ( ! is_array( $data ) || ! count( $data ) ) {
+			return array();
+		}
+
+		foreach ( $data as $key => $value ) {
+			if ( ! is_array( $value ) && ! is_object( $value ) ) {
+				$data[ $key ] = esc_attr( trim( $value ) );
+			}
+			if ( is_array( $value ) ) {
+				$data[ $key ] = self::escape_multidimensional_array( $value );
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Returns an array of values obtained by using the keys on the map; keys
+	 * that do not have a match in map are discarded.
+	 *
+	 * To discriminate from not found results and legitimately `false`
+	 * values from the map the `$found` parameter will be set by reference.
+	 *
+	 * @since 4.7.19
+	 *
+	 * @param      string|array $keys  One or more keys that should be used to get
+	 *                                 the new values
+	 * @param array             $map   An associative array relating the keys to the new
+	 *                                 values.
+	 * @param bool              $found When using a single key this argument will be
+	 *                                 set to indicate whether the mapping was successful
+	 *                                 or not.
+	 *
+	 * @return array|mixed|false An array of mapped values, a single mapped value when passing
+	 *                           one key only or `false` if one key was passed but the key could
+	 *                           not be mapped.
+	 */
+	public static function map_or_discard( $keys, array $map, &$found = true ) {
+		$hash   = md5( time() );
+		$mapped = array();
+
+		foreach ( (array) $keys as $key ) {
+			$meta_key = Tribe__Utils__Array::get( $map, $key, $hash );
+			if ( $hash === $meta_key ) {
+				continue;
+			}
+			$mapped[] = $meta_key;
+		}
+
+		$found = (bool) count( $mapped );
+
+		if ( is_array( $keys ) ) {
+			return $mapped;
+		}
+
+		return $found ? $mapped[0] : false;
+	}
+
+	/**
+	 * Duplicates any key prefixed with '_' creating an un-prefixed duplicate one.
+	 *
+	 * The un-prefixing and duplication is recursive.
+	 *
+	 * @since 4.9.5
+	 *
+	 * @param mixed $array     The array whose keys should be duplicated.
+	 * @param bool  $recursive Whether the un-prefixing and duplication should be
+	 *                         recursive or shallow.
+	 *
+	 * @return array The array with the duplicate, unprefixed, keys or the
+	 *               original input if not an array.
+	 */
+	public static function add_unprefixed_keys_to( $array, $recursive = false ) {
+		if ( ! is_array( $array ) ) {
+			return $array;
+		}
+
+		$unprefixed = array();
+		foreach ( $array as $key => $value ) {
+			if ( $recursive && is_array( $value ) ) {
+				$value = self::add_unprefixed_keys_to( $value, true );
+				// And also add it to the original array.
+				$array[ $key ] = array_merge( $array[ $key ], $value );
+			}
+
+			if ( 0 !== strpos( $key, '_' ) ) {
+				continue;
+			}
+			$unprefixed[ substr( $key, 1 ) ] = $value;
+		}
+
+		return array_merge( $array, $unprefixed );
+	}
+
+	/**
+	 * Filters an associative array non-recursively, keeping only the values attached
+	 * to keys starting with the specified prefix.
+	 *
+	 * @since 4.9.5
+	 *
+	 * @param array $array The array to filter.
+	 * @param string $prefix The prefix, or prefixes, of the keys to keep.
+	 *
+	 * @return array The filtered array.
+	 */
+	public static function filter_prefixed( array $array, $prefix ) {
+		$prefixes = implode( '|', array_map( 'preg_quote', (array) $prefix ) );
+		$pattern  = '/^(' . $prefixes . ')/';
+		$filtered = array();
+		foreach ( $array as $key => $value ) {
+			if ( ! preg_match( $pattern, $key ) ) {
+				continue;
+			}
+			$filtered[ $key ] = $value;
+		}
+
+		return $filtered;
+	}
+
+	/**
+	 * Flattens an array transforming each value that is an array and only contains one
+	 * element into that one element.
+	 *
+	 * Typical use case is to flatten arrays like those returned by `get_post_meta( $id )`.
+	 * Empty arrays are replaced with an empty string.
+	 *
+	 * @since 4.9.5
+	 *
+	 * @param array $array The array to flatten.
+	 *
+	 * @return array The flattened array.
+	 */
+	public static function flatten( array $array ) {
+		foreach ( $array as $key => &$value ) {
+			if ( ! is_array( $value ) ) {
+				continue;
+			}
+
+			$count = count( $value );
+
+			switch ( $count ) {
+				case 0:
+					$value = '';
+					break;
+				case 1:
+					$value = reset( $value );
+					break;
+				default:
+					break;
+			}
+		}
+
+		return $array;
+	}
+
+	/**
+	 * Duplicates any key not prefixed with '_' creating a prefixed duplicate one.
+	 *
+	 * The prefixing and duplication is recursive.
+	 *
+	 * @since 4.9.5
+	 *
+	 * @param mixed $array     The array whose keys should be duplicated.
+	 * @param bool  $recursive Whether the prefixing and duplication should be
+	 *                         recursive or shallow.
+	 *
+	 * @return array The array with the duplicate, prefixed, keys or the
+	 *               original input if not an array.
+	 */
+	public static function add_prefixed_keys_to( $array, $recursive = false ) {
+		if ( ! is_array( $array ) ) {
+			return $array;
+		}
+
+		$prefixed = array();
+		foreach ( $array as $key => $value ) {
+			if ( $recursive && is_array( $value ) ) {
+				$value = self::add_prefixed_keys_to( $value, true );
+				// And also add it to the original array.
+				$array[ $key ] = array_merge( $array[ $key ], $value );
+			}
+
+			if ( 0 === strpos( $key, '_' ) ) {
+				continue;
+			}
+
+			$prefixed[ '_' . $key ] = $value;
+		}
+
+		return array_merge( $array, $prefixed );
+	}
+
+	/**
+	 * Recursively key-sort an array.
+	 *
+	 * @since 4.9.5
+	 *
+	 * @param array $array The array to sort, modified by reference.
+	 *
+	 * @return bool The sorting result.
+	 */
+	public static function recursive_ksort( array &$array ) {
+		foreach ( $array as &$value ) {
+			if ( is_array( $value ) ) {
+				static::recursive_ksort( $value );
+			}
+		}
+
+		return ksort( $array );
 	}
 }
