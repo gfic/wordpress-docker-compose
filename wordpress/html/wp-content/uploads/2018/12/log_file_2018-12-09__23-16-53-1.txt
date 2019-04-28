@@ -1,0 +1,18 @@
+
+---Downloaded files---
+The import files for: My City were successfully downloaded!
+Initial max execution time = 30
+Files info:
+Site URL = https://mylistingtheme.com
+Data file = /var/www/html/mylistingtheme.com/wp-content/uploads/2018/12/demo-content-import-file_2018-12-09__23-16-53.xml
+Widget file = not defined!
+Customizer file = not defined!
+Redux files:
+not defined!
+
+------
+New AJAX call!
+
+
+---pt-ocdi/after_import---
+

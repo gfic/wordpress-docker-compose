@@ -1,4 +1,4 @@
-wordpress:
+my_wordpress:
   image: wordpress
   links:
     - wordpress_db:mysql
@@ -11,6 +11,8 @@ wordpress:
     # - ~/repos/wordpress/wp_var:/var
 wordpress_db:
   image: mariadb
+  volumes: 
+    - ./mariadb/mysql:/var/lib/mysql
   environment:
     MYSQL_ROOT_PASSWORD: Test!23
 phpmyadmin:
