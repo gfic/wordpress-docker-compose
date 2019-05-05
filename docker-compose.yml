@@ -7,7 +7,8 @@ my_wordpress:
   volumes:
     - ./wordpress/html:/var/www/html
     - ./wordpress/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
-    - ./wordpress/themes/Avada:/var/www/html/wp-content/themes/Avada
+    # - ./wordpress/plugins:/var/www/html/wp-content/plugins
+    # - ./wordpress/themes:/var/www/html/wp-content/themes
     # - ~/repos/wordpress/wp_var:/var
 wordpress_db:
   image: mariadb
