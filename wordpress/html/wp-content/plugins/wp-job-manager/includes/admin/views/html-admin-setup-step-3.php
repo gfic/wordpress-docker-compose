@@ -1,14 +1,13 @@
 <?php
 /**
- * Setup page: Step 3 content.
+ * File containing the view for step 3 of the setup wizard.
  *
- * @package WP Job Manager
+ * @package wp-job-manager
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 ?>
 <h3><?php esc_html_e( 'You\'re ready to start using WP Job Manager!', 'wp-job-manager' ); ?></h3>
 
@@ -53,7 +52,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			__(
 				'If you need help, you can find more detail in our
 							<a href="%1$s">support documentation</a> or post your question on the
-							<a href="%2$s">WP Job Manager support forums</a>. Happy hiring!', 'wp-job-manager'
+							<a href="%2$s">WP Job Manager support forums</a>. Happy hiring!',
+				'wp-job-manager'
 			),
 			'https://wpjobmanager.com/documentation/',
 			'https://wordpress.org/support/plugin/wp-job-manager'

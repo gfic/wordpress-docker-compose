@@ -1,4 +1,5 @@
 /* global FusionPageBuilderEvents, FusionPageBuilderViewManager, fusionAllElements, tinyMCE, FusionPageBuilderApp, fusionBuilderInsertIntoEditor */
+/* eslint no-unused-vars: 0 */
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -24,7 +25,14 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			},
 
 			render: function() {
+				var self = this;
+
 				this.$el.html( this.template( FusionPageBuilderViewManager.toJSON() ) );
+
+				setTimeout( function() {
+					self.$el.find( '.fusion-elements-filter' ).focus();
+				}, 50 );
+
 				return this;
 			},
 
@@ -67,11 +75,11 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				_.each( defaultParams, function( param )  {
 					var value;
 					if ( _.isObject( param.value ) ) {
-						value = param.default;
+						value = param[ 'default' ];
 					} else {
 						value = param.value;
 					}
-					params[param.param_name] = value;
+					params[ param.param_name ] = value;
 				} );
 
 				elementSettings = {
@@ -135,17 +143,17 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				thisView          = this.options.view;
 
 				// Get default settings
-				defaultParams = fusionAllElements[elementType].params;
+				defaultParams = fusionAllElements[ elementType ].params;
 				params = {};
 
 				// Process default parameters from shortcode
 				_.each( defaultParams, function( param )  {
 					if ( _.isObject( param.value ) ) {
-						value = param.default;
+						value = param[ 'default' ];
 					} else {
 						value = param.value;
 					}
-					params[param.param_name] = value;
+					params[ param.param_name ] = value;
 				} );
 
 				_.each( layout, function( element, index ) {
@@ -201,24 +209,24 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				// Process default parameters from shortcode
 				_.each( defaultParams, function( param ) {
 					if ( _.isObject( param.value ) ) {
-						value = param.default;
+						value = param[ 'default' ];
 					} else {
 						value = param.value;
 					}
 					params[ param.param_name ] = value;
 				} );
 
-				this.collection.add( [ {
-					type: 'generated_element',
-					added: 'manually',
-					element_type: 'fusion_builder_container',
-					params: params,
-					view: this
-				} ] );
+				this.collection.add( [
+					{
+						type: 'generated_element',
+						added: 'manually',
+						element_type: 'fusion_builder_container',
+						params: params,
+						view: this
+					}
+				] );
 			}
-
 		} );
-
 	} );
 
-} ( jQuery ) );
+}( jQuery ) );

@@ -1,4 +1,10 @@
 <?php
+/**
+ * Add an element to fusion-builder.
+ *
+ * @package fusion-builder
+ * @since 1.0
+ */
 
 /**
  * Row shortcode
@@ -10,10 +16,12 @@
 function fusion_builder_row( $atts, $content = '' ) {
 	extract(
 		shortcode_atts(
-			array(
+			[
 				'id'    => '',
 				'class' => '',
-			), $atts
+			],
+			$atts,
+			'fusion_builder_row'
 		)
 	);
 
@@ -27,11 +35,11 @@ add_shortcode( 'fusion_builder_row', 'fusion_builder_row' );
  */
 function fusion_element_row() {
 	fusion_builder_map(
-		array(
+		[
 			'name'              => esc_attr__( 'Row', 'fusion-builder' ),
 			'shortcode'         => 'fusion_builder_row',
 			'hide_from_builder' => true,
-		)
+		]
 	);
 }
 add_action( 'fusion_builder_before_init', 'fusion_element_row' );

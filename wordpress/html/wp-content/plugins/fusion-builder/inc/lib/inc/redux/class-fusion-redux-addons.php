@@ -66,25 +66,27 @@ class Fusion_Redux_Addons {
 		$this->option_name = $option_name;
 
 		// An array of all the custom fields we have.
-		$this->field_types = array(
+		$this->field_types = [
 			'typography',
 			'color_alpha',
 			'spacing',
 			'dimensions',
 			'ace_editor',
-		);
+			'sortable',
+			'color_palette',
+		];
 		// An array of all our extensions.
-		$this->extensions = array(
+		$this->extensions = [
 			'search',
 			'repeater',
 			'accordion',
 			'vendorsupport',
-		);
+		];
 
 		$this->path = dirname( __FILE__ );
 
 		foreach ( $this->field_types as $field_type ) {
-			add_action( 'fusionredux/' . $this->option_name . '/field/class/' . $field_type, array( $this, 'register_' . $field_type ) );
+			add_action( 'fusionredux/' . $this->option_name . '/field/class/' . $field_type, [ $this, 'register_' . $field_type ] );
 		}
 
 		foreach ( $this->extensions as $extension ) {
@@ -143,5 +145,25 @@ class Fusion_Redux_Addons {
 	 */
 	public function register_dimensions() {
 		return $this->path . '/custom-fields/dimensions/field_dimensions.php';
+	}
+
+	/**
+	 * Register the custom sortable field
+	 *
+	 * @access public
+	 * @since 2.0
+	 */
+	public function register_sortable() {
+		return $this->path . '/custom-fields/sortable/field_sortable.php';
+	}
+
+	/**
+	 * Register the custom color pallete field
+	 *
+	 * @access public
+	 * @since 2.0
+	 */
+	public function register_color_palette() {
+		return $this->path . '/custom-fields/color_palette/field_color_palette.php';
 	}
 }

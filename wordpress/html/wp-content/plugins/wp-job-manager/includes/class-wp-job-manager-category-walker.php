@@ -1,6 +1,12 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Category_Walker.
+ *
+ * @package wp-job-manager
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
@@ -56,10 +62,11 @@ class WP_Job_Manager_Category_Walker extends Walker {
 
 		$output .= "\t<option class=\"level-" . intval( $depth ) . '" value="' . esc_attr( $value ) . '"';
 
-		if ( isset( $args['selected'] ) && (
+		if (
+			isset( $args['selected'] ) && (
 				$value == $args['selected'] // phpcs:ignore WordPress.PHP.StrictComparisons
 				|| ( is_array( $args['selected'] ) && in_array( $value, $args['selected'] ) ) // phpcs:ignore WordPress.PHP.StrictInArray
-			 )
+			)
 		) {
 			$output .= ' selected="selected"';
 		}

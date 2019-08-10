@@ -62,6 +62,8 @@ class MailChimp_WooCommerce_Transform_Orders
 
         $order = new MailChimp_WooCommerce_Order();
 
+        $customer = $this->buildCustomerFromOrder($woo);
+
         $email = $woo->get_billing_email();
 
         // just skip these altogether because we can't submit any amazon orders anyway.
@@ -75,12 +77,16 @@ class MailChimp_WooCommerce_Transform_Orders
 
         // if we have a campaign id let's set it now.
         if (!empty($this->campaign_id)) {
-            $order->setCampaignId($this->campaign_id);
+            try {
+                $order->setCampaignId($this->campaign_id);
+            } catch (\Exception $e) {
+                mailchimp_log('transform_order_set_campaign_id.error', 'No campaign added to order, with provided ID: '. $this->campaign_id. ' :: '. $e->getMessage(). ' :: in '.$e->getFile().' :: on '.$e->getLine());
+            }
         }
 
         $order->setProcessedAt($woo->get_date_created()->setTimezone(new \DateTimeZone('UTC')));
 
-        $order->setCurrencyCode($woo->get_currency());
+        $order->setCurrencyCode();
 
         // grab the current statuses - this will end up being custom at some point.
         $statuses = $this->getOrderStatuses();
@@ -118,6 +124,13 @@ class MailChimp_WooCommerce_Transform_Orders
             $order->setOrderURL($woo->get_view_order_url());
         }
 
+        // set the total if refund
+        if (($refund = $woo->get_total_refunded()) && $refund > 0){
+            // If there's a refund, apply to order total.
+            $order_spent = $order_total - $refund;
+            $order->setOrderTotal($order_spent);
+        }
+
         // if we have any tax
         $order->setTaxTotal($woo->get_total_tax());
 
@@ -130,7 +143,7 @@ class MailChimp_WooCommerce_Transform_Orders
         $order->setDiscountTotal($woo->get_total_discount());
 
         // set the customer
-        $order->setCustomer($this->buildCustomerFromOrder($woo));
+        $order->setCustomer($customer);
 
         // apply the addresses to the order
         $order->setShippingAddress($this->transformShippingAddress($woo));
@@ -172,10 +185,6 @@ class MailChimp_WooCommerce_Transform_Orders
 
             $order->addItem($item);
         }
-
-        //if (($refund = $woo->get_total_refunded()) && $refund > 0){
-            // this is where we would be altering the submission to tell us about the refund.
-        //}
 
         return $order;
     }

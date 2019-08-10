@@ -1,13 +1,17 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Ajax.
+ *
+ * @package wp-job-manager
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
  * Handles Job Manager's Ajax endpoints.
  *
- * @package wp-job-manager
  * @since 1.0.0
  */
 class WP_Job_Manager_Ajax {
@@ -18,7 +22,7 @@ class WP_Job_Manager_Ajax {
 	 * @var self
 	 * @since  1.26.0
 	 */
-	private static $_instance = null;
+	private static $instance = null;
 
 	/**
 	 * Allows for accessing single instance of class. Class should only be constructed once per call.
@@ -28,10 +32,10 @@ class WP_Job_Manager_Ajax {
 	 * @return self Main instance.
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self();
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
 		}
-		return self::$_instance;
+		return self::$instance;
 	}
 
 	/**
@@ -66,10 +70,9 @@ class WP_Job_Manager_Ajax {
 	 * Gets Job Manager's Ajax Endpoint.
 	 *
 	 * @param  string $request      Optional.
-	 * @param  string $ssl (Unused) Optional.
 	 * @return string
 	 */
-	public static function get_endpoint( $request = '%%endpoint%%', $ssl = null ) {
+	public static function get_endpoint( $request = '%%endpoint%%' ) {
 		if ( strstr( get_option( 'permalink_structure' ), '/index.php/' ) ) {
 			$endpoint = trailingslashit( home_url( '/index.php/jm-ajax/' . $request . '/', 'relative' ) );
 		} elseif ( get_option( 'permalink_structure' ) ) {
@@ -86,8 +89,10 @@ class WP_Job_Manager_Ajax {
 	public static function do_jm_ajax() {
 		global $wp_query;
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Input is used safely.
 		if ( ! empty( $_GET['jm-ajax'] ) ) {
-			 $wp_query->set( 'jm-ajax', sanitize_text_field( $_GET['jm-ajax'] ) );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Input is used safely.
+			$wp_query->set( 'jm-ajax', sanitize_text_field( wp_unslash( $_GET['jm-ajax'] ) ) );
 		}
 
 		$action = $wp_query->get( 'jm-ajax' );
@@ -114,23 +119,30 @@ class WP_Job_Manager_Ajax {
 	 * Returns Job Listings for Ajax endpoint.
 	 */
 	public function get_listings() {
-		global $wp_post_types;
-
-		$result             = array();
-		$search_location    = sanitize_text_field( stripslashes( $_REQUEST['search_location'] ) );
-		$search_keywords    = sanitize_text_field( stripslashes( $_REQUEST['search_keywords'] ) );
-		$search_categories  = isset( $_REQUEST['search_categories'] ) ? $_REQUEST['search_categories'] : '';
-		$filter_job_types   = isset( $_REQUEST['filter_job_type'] ) ? array_filter( array_map( 'sanitize_title', (array) $_REQUEST['filter_job_type'] ) ) : null;
-		$filter_post_status = isset( $_REQUEST['filter_post_status'] ) ? array_filter( array_map( 'sanitize_title', (array) $_REQUEST['filter_post_status'] ) ) : null;
-		$types              = get_job_listing_types();
-		$post_type_label    = $wp_post_types['job_listing']->labels->name;
-		$orderby            = sanitize_text_field( $_REQUEST['orderby'] );
+		// Get input variables.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Fetching data only; often for logged out visitors.
+		$search_location    = isset( $_REQUEST['search_location'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['search_location'] ) ) : '';
+		$search_keywords    = isset( $_REQUEST['search_keywords'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['search_keywords'] ) ) : '';
+		$search_categories  = isset( $_REQUEST['search_categories'] ) ? wp_unslash( $_REQUEST['search_categories'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Input is sanitized below.
+		$filter_job_types   = isset( $_REQUEST['filter_job_type'] ) ? array_filter( array_map( 'sanitize_title', wp_unslash( (array) $_REQUEST['filter_job_type'] ) ) ) : null;
+		$filter_post_status = isset( $_REQUEST['filter_post_status'] ) ? array_filter( array_map( 'sanitize_title', wp_unslash( (array) $_REQUEST['filter_post_status'] ) ) ) : null;
+		$order              = isset( $_REQUEST['order'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['order'] ) ) : 'DESC';
+		$orderby            = isset( $_REQUEST['orderby'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['orderby'] ) ) : 'featured';
+		$page               = isset( $_REQUEST['page'] ) ? absint( $_REQUEST['page'] ) : 1;
+		$per_page           = isset( $_REQUEST['per_page'] ) ? absint( $_REQUEST['per_page'] ) : absint( get_option( 'job_manager_per_page' ) );
+		$filled             = isset( $_REQUEST['filled'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['filled'] ) ) : null;
+		$featured           = isset( $_REQUEST['featured'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['featured'] ) ) : null;
+		$show_pagination    = isset( $_REQUEST['show_pagination'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['show_pagination'] ) ) : null;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		if ( is_array( $search_categories ) ) {
 			$search_categories = array_filter( array_map( 'sanitize_text_field', array_map( 'stripslashes', $search_categories ) ) );
 		} else {
-			$search_categories = array_filter( array( sanitize_text_field( stripslashes( $search_categories ) ) ) );
+			$search_categories = array_filter( array( sanitize_text_field( wp_unslash( $search_categories ) ) ) );
 		}
+
+		$types              = get_job_listing_types();
+		$job_types_filtered = ! is_null( $filter_job_types ) && count( $types ) !== count( $filter_job_types );
 
 		$args = array(
 			'search_location'   => $search_location,
@@ -139,17 +151,17 @@ class WP_Job_Manager_Ajax {
 			'job_types'         => is_null( $filter_job_types ) || count( $types ) === count( $filter_job_types ) ? '' : $filter_job_types + array( 0 ),
 			'post_status'       => $filter_post_status,
 			'orderby'           => $orderby,
-			'order'             => sanitize_text_field( $_REQUEST['order'] ),
-			'offset'            => ( absint( $_REQUEST['page'] ) - 1 ) * absint( $_REQUEST['per_page'] ),
-			'posts_per_page'    => max( 1, absint( $_REQUEST['per_page'] ) ),
+			'order'             => $order,
+			'offset'            => ( $page - 1 ) * $per_page,
+			'posts_per_page'    => max( 1, $per_page ),
 		);
 
-		if ( isset( $_REQUEST['filled'] ) && ( 'true' === $_REQUEST['filled'] || 'false' === $_REQUEST['filled'] ) ) {
-			$args['filled'] = 'true' === $_REQUEST['filled'];
+		if ( 'true' === $filled || 'false' === $filled ) {
+			$args['filled'] = 'true' === $filled;
 		}
 
-		if ( isset( $_REQUEST['featured'] ) && ( 'true' === $_REQUEST['featured'] || 'false' === $_REQUEST['featured'] ) ) {
-			$args['featured'] = 'true' === $_REQUEST['featured'];
+		if ( 'true' === $featured || 'false' === $featured ) {
+			$args['featured'] = 'true' === $featured;
 			$args['orderby']  = 'featured' === $orderby ? 'date' : $orderby;
 		}
 
@@ -168,7 +180,7 @@ class WP_Job_Manager_Ajax {
 			'max_num_pages' => $jobs->max_num_pages,
 		);
 
-		if ( $jobs->post_count && ( $search_location || $search_keywords || $search_categories ) ) {
+		if ( $jobs->post_count && ( $search_location || $search_keywords || $search_categories || $job_types_filtered ) ) {
 			// translators: Placeholder %d is the number of found search results.
 			$message               = sprintf( _n( 'Search completed. Found %d matching record.', 'Search completed. Found %d matching records.', $jobs->found_posts, 'wp-job-manager' ), $jobs->found_posts );
 			$result['showing_all'] = true;
@@ -234,7 +246,9 @@ class WP_Job_Manager_Ajax {
 			 *  @type array $pagination     Pagination links to use for stepping through filter results.
 			 * }
 			 */
-			return wp_send_json( apply_filters( 'job_manager_get_listings_result', $result, $jobs ) );
+			wp_send_json( apply_filters( 'job_manager_get_listings_result', $result, $jobs ) );
+
+			return;
 		}
 
 		ob_start();
@@ -251,8 +265,8 @@ class WP_Job_Manager_Ajax {
 		$result['html'] = ob_get_clean();
 
 		// Generate pagination.
-		if ( isset( $_REQUEST['show_pagination'] ) && 'true' === $_REQUEST['show_pagination'] ) {
-			$result['pagination'] = get_job_listing_pagination( $jobs->max_num_pages, absint( $_REQUEST['page'] ) );
+		if ( 'true' === $show_pagination ) {
+			$result['pagination'] = get_job_listing_pagination( $jobs->max_num_pages, $page );
 		}
 
 		/** This filter is documented in includes/class-wp-job-manager-ajax.php (above) */
@@ -311,7 +325,7 @@ class WP_Job_Manager_Ajax {
 		 *
 		 * @since 1.32.0
 		 *
-		 * @params array $user_caps Array of capabilities/roles that are allowed to search for users.
+		 * @param array $user_caps Array of capabilities/roles that are allowed to search for users.
 		 */
 		$allowed_capabilities = apply_filters( 'job_manager_caps_can_search_users', array( 'edit_job_listings' ) );
 		foreach ( $allowed_capabilities as $cap ) {
@@ -326,7 +340,7 @@ class WP_Job_Manager_Ajax {
 		 *
 		 * @since 1.32.0
 		 *
-		 * @params bool $user_can_search_users True if they are allowed, false if not.
+		 * @param bool $user_can_search_users True if they are allowed, false if not.
 		 */
 		return apply_filters( 'job_manager_user_can_search_users', $user_can_search_users );
 	}
@@ -341,7 +355,7 @@ class WP_Job_Manager_Ajax {
 			wp_die( -1 );
 		}
 
-		$term     = sanitize_text_field( wp_unslash( $_GET['term'] ) );
+		$term     = isset( $_GET['term'] ) ? sanitize_text_field( wp_unslash( $_GET['term'] ) ) : '';
 		$page     = isset( $_GET['page'] ) ? intval( $_GET['page'] ) : 1;
 		$per_page = 20;
 
@@ -383,10 +397,10 @@ class WP_Job_Manager_Ajax {
 			 *
 			 * @see https://codex.wordpress.org/Class_Reference/WP_User_Query
 			 *
-			 * @params array  $search_args Argument array used in `WP_User_Query` constructor.
-			 * @params string $term        Search term.
-			 * @params int[]  $exclude     Array of IDs to exclude.
-			 * @params int    $page        Current page.
+			 * @param array  $search_args Argument array used in `WP_User_Query` constructor.
+			 * @param string $term        Search term.
+			 * @param int[]  $exclude     Array of IDs to exclude.
+			 * @param int    $page        Current page.
 			 */
 			$search_args = apply_filters( 'job_manager_search_users_args', $search_args, $term, $exclude, $page );
 
@@ -418,13 +432,13 @@ class WP_Job_Manager_Ajax {
 		 *
 		 * @since 1.32.0
 		 *
-		 * @params array  $response    {
-		 *      @type $results Array of all found users; id => string descriptor
-		 *      @type $more    True if there is an additional page.
+		 * @param array  $response    {
+		 *      @type array   $results Array of all found users; id => string descriptor
+		 *      @type boolean $more    True if there is an additional page.
 		 * }
-		 * @params string $term        Search term.
-		 * @params int[]  $exclude     Array of IDs to exclude.
-		 * @params int    $page        Current page.
+		 * @param string $term        Search term.
+		 * @param int[]  $exclude     Array of IDs to exclude.
+		 * @param int    $page        Current page.
 		 */
 		$response = apply_filters( 'job_manager_search_users_response', $response, $term, $exclude, $page );
 

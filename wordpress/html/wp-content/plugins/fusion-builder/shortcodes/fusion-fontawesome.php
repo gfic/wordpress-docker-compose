@@ -1,4 +1,10 @@
 <?php
+/**
+ * Add an element to fusion-builder.
+ *
+ * @package fusion-builder
+ * @since 1.0
+ */
 
 if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 
@@ -6,7 +12,6 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 		/**
 		 * Shortcode class.
 		 *
-		 * @package fusion-builder
 		 * @since 1.0
 		 */
 		class FusionSC_FontAwesome extends Fusion_Element {
@@ -28,9 +33,63 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 			 */
 			public function __construct() {
 				parent::__construct();
-				add_filter( 'fusion_attr_fontawesome-shortcode', array( $this, 'attr' ) );
-				add_shortcode( 'fusion_fontawesome', array( $this, 'render' ) );
+				add_filter( 'fusion_attr_fontawesome-shortcode', [ $this, 'attr' ] );
+				add_shortcode( 'fusion_fontawesome', [ $this, 'render' ] );
 
+			}
+
+			/**
+			 * Gets the default values.
+			 *
+			 * @static
+			 * @access public
+			 * @since 2.0.0
+			 * @return array
+			 */
+			public static function get_element_defaults() {
+
+				global $fusion_settings;
+
+				return [
+					'hide_on_mobile'      => fusion_builder_default_visibility( 'string' ),
+					'class'               => '',
+					'id'                  => '',
+					'alignment'           => '',
+					'circle'              => 'yes',
+					'circlecolor'         => $fusion_settings->get( 'icon_circle_color' ),
+					'circlebordercolor'   => $fusion_settings->get( 'icon_border_color' ),
+					'flip'                => '',
+					'icon'                => '',
+					'iconcolor'           => $fusion_settings->get( 'icon_color' ),
+					'margin_bottom'       => '',
+					'margin_left'         => '',
+					'margin_right'        => '',
+					'margin_top'          => '',
+					'rotate'              => '',
+					'size'                => 'medium',
+					'spin'                => 'no',
+					'animation_type'      => '',
+					'animation_direction' => 'down',
+					'animation_speed'     => '0.1',
+					'animation_offset'    => $fusion_settings->get( 'animation_offset' ),
+				];
+			}
+
+			/**
+			 * Maps settings to param variables.
+			 *
+			 * @static
+			 * @access public
+			 * @since 2.0.0
+			 * @return array
+			 */
+			public static function settings_to_params() {
+				return [
+					'icon_circle_color' => 'circlecolor',
+					'icon_border_color' => 'circlebordercolor',
+					'icon_color'        => 'iconcolor',
+					'animation_offset'  => 'animation_offset',
+				];
 			}
 
 			/**
@@ -46,31 +105,7 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 
 				global $fusion_settings;
 
-				$defaults = FusionBuilder::set_shortcode_defaults(
-					array(
-						'hide_on_mobile'      => fusion_builder_default_visibility( 'string' ),
-						'class'               => '',
-						'id'                  => '',
-						'alignment'           => '',
-						'circle'              => 'yes',
-						'circlecolor'         => $fusion_settings->get( 'icon_circle_color' ),
-						'circlebordercolor'   => $fusion_settings->get( 'icon_border_color' ),
-						'flip'                => '',
-						'icon'                => '',
-						'iconcolor'           => $fusion_settings->get( 'icon_color' ),
-						'margin_bottom'       => '',
-						'margin_left'         => '',
-						'margin_right'        => '',
-						'margin_top'          => '',
-						'rotate'              => '',
-						'size'                => 'medium',
-						'spin'                => 'no',
-						'animation_type'      => '',
-						'animation_direction' => 'down',
-						'animation_speed'     => '0.1',
-						'animation_offset'    => $fusion_settings->get( 'animation_offset' ),
-					), $args
-				);
+				$defaults = FusionBuilder::set_shortcode_defaults( self::get_element_defaults(), $args, 'fusion_fontawesome' );
 
 				extract( $defaults );
 
@@ -107,14 +142,15 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 			public function attr() {
 
 				$attr = fusion_builder_visibility_atts(
-					$this->args['hide_on_mobile'], array(
+					$this->args['hide_on_mobile'],
+					[
 						'class' => 'fontawesome-icon ' . FusionBuilder::font_awesome_name_handler( $this->args['icon'] ) . ' circle-' . $this->args['circle'],
-					)
+					]
 				);
 
 				$attr['style'] = '';
 
-				if ( 'yes' == $this->args['circle'] ) {
+				if ( 'yes' === $this->args['circle'] ) {
 
 					if ( $this->args['circlebordercolor'] ) {
 						$attr['style'] .= 'border-color:' . $this->args['circlebordercolor'] . ';';
@@ -134,7 +170,7 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 
 				// Legacy icon, where no margin option was present: use the old default ,argin calcs.
 				if ( $this->args['legacy_icon'] ) {
-					$icon_margin  = $this->args['font_size'] * 0.5;
+					$icon_margin = $this->args['font_size'] * 0.5;
 
 					if ( 'left' === $this->args['alignment'] ) {
 						$icon_margin_position = 'right';
@@ -175,7 +211,7 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 					$attr['class'] .= ' fa-rotate-' . $this->args['rotate'];
 				}
 
-				if ( 'yes' == $this->args['spin'] ) {
+				if ( 'yes' === $this->args['spin'] ) {
 					$attr['class'] .= ' fa-spin';
 				}
 
@@ -185,12 +221,12 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 
 				if ( $this->args['animation_type'] ) {
 					$animations = FusionBuilder::animations(
-						array(
+						[
 							'type'      => $this->args['animation_type'],
 							'direction' => $this->args['animation_direction'],
 							'speed'     => $this->args['animation_speed'],
 							'offset'    => $this->args['animation_offset'],
-						)
+						]
 					);
 
 					$attr = array_merge( $attr, $animations );
@@ -246,37 +282,59 @@ if ( fusion_is_element_enabled( 'fusion_fontawesome' ) ) {
 			 */
 			public function add_options() {
 
-				return array(
-					'icon_shortcode_section' => array(
-						'label'       => esc_html__( 'Icon Element', 'fusion-builder' ),
+				return [
+					'fontawesome_shortcode_section' => [
+						'label'       => esc_html__( 'Font Awesome Icon', 'fusion-builder' ),
 						'description' => '',
-						'id'          => 'icon_shortcode_section',
+						'id'          => 'fontawesome_shortcode_section',
 						'type'        => 'accordion',
-						'fields'      => array(
-							'icon_circle_color' => array(
+						'icon'        => 'fusiona-flag',
+						'fields'      => [
+							'icon_circle_color' => [
 								'label'       => esc_html__( 'Icon Circle Background Color', 'fusion-builder' ),
 								'description' => esc_html__( 'Controls the color of the circle background.', 'fusion-builder' ),
 								'id'          => 'icon_circle_color',
 								'default'     => '#333333',
 								'type'        => 'color-alpha',
-							),
-							'icon_border_color' => array(
+								'transport'   => 'postMessage',
+								'css_vars'    => [
+									[
+										'name'     => '--icon_circle_color',
+										'callback' => [ 'sanitize_color' ],
+									],
+								],
+							],
+							'icon_border_color' => [
 								'label'       => esc_html__( 'Icon Circle Border Color', 'fusion-builder' ),
 								'description' => esc_html__( 'Controls the border color of the circle background.', 'fusion-builder' ),
 								'id'          => 'icon_border_color',
 								'default'     => '#333333',
 								'type'        => 'color-alpha',
-							),
-							'icon_color' => array(
+								'transport'   => 'postMessage',
+								'css_vars'    => [
+									[
+										'name'     => '--icon_border_color',
+										'callback' => [ 'sanitize_color' ],
+									],
+								],
+							],
+							'icon_color'        => [
 								'label'       => esc_html__( 'Icon Color', 'fusion-builder' ),
 								'description' => esc_html__( 'Controls the color of the icon.', 'fusion-builder' ),
 								'id'          => 'icon_color',
 								'default'     => '#ffffff',
 								'type'        => 'color-alpha',
-							),
-						),
-					),
-				);
+								'transport'   => 'postMessage',
+								'css_vars'    => [
+									[
+										'name'     => '--icon_color',
+										'callback' => [ 'sanitize_color' ],
+									],
+								],
+							],
+						],
+					],
+				];
 			}
 
 			/**
@@ -307,245 +365,252 @@ function fusion_element_font_awesome() {
 	global $fusion_settings;
 
 	fusion_builder_map(
-		array(
-			'name'       => esc_attr__( 'Font Awesome Icon', 'fusion-builder' ),
-			'shortcode'  => 'fusion_fontawesome',
-			'icon'       => 'fusiona-flag',
-			'preview'    => FUSION_BUILDER_PLUGIN_DIR . 'inc/templates/previews/fusion-font-awesome-preview.php',
-			'preview_id' => 'fusion-builder-block-module-font-awesome-preview-template',
-			'params'     => array(
-				array(
-					'type'        => 'iconpicker',
-					'heading'     => esc_attr__( 'Select Icon', 'fusion-builder' ),
-					'param_name'  => 'icon',
-					'value'       => '',
-					'description' => esc_attr__( 'Click an icon to select, click again to deselect.', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'textfield',
-					'heading'     => esc_attr__( 'Size of Icon', 'fusion-builder' ),
-					'description' => esc_attr__( 'Set the size of the icon. In pixels (px), ex: 13px.', 'fusion-builder' ),
-					'param_name'  => 'size',
-					'value'       => '',
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Flip Icon', 'fusion-builder' ),
-					'description' => esc_attr__( 'Choose to flip the icon.', 'fusion-builder' ),
-					'param_name'  => 'flip',
-					'value'       => array(
-						''           => esc_attr__( 'None', 'fusion-builder' ),
-						'horizontal' => esc_attr__( 'Horizontal', 'fusion-builder' ),
-						'vertical'   => esc_attr__( 'Vertical', 'fusion-builder' ),
-					),
-					'default'     => '',
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Rotate Icon', 'fusion-builder' ),
-					'description' => esc_attr__( 'Choose to rotate the icon.', 'fusion-builder' ),
-					'param_name'  => 'rotate',
-					'value'       => array(
-						''    => esc_attr__( 'None', 'fusion-builder' ),
-						'90'  => '90',
-						'180' => '180',
-						'270' => '270',
-					),
-					'default'     => '',
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Spinning Icon', 'fusion-builder' ),
-					'description' => esc_attr__( 'Choose to let the icon spin.', 'fusion-builder' ),
-					'param_name'  => 'spin',
-					'value'       => array(
-						'yes' => esc_attr__( 'Yes', 'fusion-builder' ),
-						'no'  => esc_attr__( 'No', 'fusion-builder' ),
-					),
-					'default'     => 'no',
-				),
-				array(
-					'type'             => 'dimension',
-					'remove_from_atts' => true,
-					'heading'          => esc_attr__( 'Margin', 'fusion-builder' ),
-					'description'      => __( 'Spacing around the font awesome icon. In px, em or %, e.g. 10px. <strong>Note:</strong> Leave empty for automatic margin calculation, based on alignment and icon size.', 'fusion-builder' ),
-					'param_name'       => 'margin',
-					'group'            => esc_attr__( 'Design', 'fusion-builder' ),
-					'value'            => array(
-						'margin_top'    => '',
-						'margin_right'  => '',
-						'margin_bottom' => '',
-						'margin_left'   => '',
-					),
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Icon in Circle', 'fusion-builder' ),
-					'description' => esc_attr__( 'Choose to display the icon in a circle.', 'fusion-builder' ),
-					'param_name'  => 'circle',
-					'value'       => array(
-						'yes' => esc_attr__( 'Yes', 'fusion-builder' ),
-						'no'  => esc_attr__( 'No', 'fusion-builder' ),
-					),
-					'default'     => 'yes',
-					'group'       => esc_attr__( 'Design', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'colorpickeralpha',
-					'heading'     => esc_attr__( 'Icon Color', 'fusion-builder' ),
-					'description' => esc_attr__( 'Controls the color of the icon. ', 'fusion-builder' ),
-					'param_name'  => 'iconcolor',
-					'value'       => '',
-					'default'     => $fusion_settings->get( 'icon_color' ),
-					'group'       => esc_attr__( 'Design', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'colorpickeralpha',
-					'heading'     => esc_attr__( 'Icon Circle Background Color', 'fusion-builder' ),
-					'description' => esc_attr__( 'Controls the color of the circle. ', 'fusion-builder' ),
-					'param_name'  => 'circlecolor',
-					'value'       => '',
-					'default'     => $fusion_settings->get( 'icon_circle_color' ),
-					'group'       => esc_attr__( 'Design', 'fusion-builder' ),
-					'dependency'  => array(
-						array(
-							'element'  => 'circle',
-							'value'    => 'yes',
-							'operator' => '==',
-						),
-					),
-				),
-				array(
-					'type'        => 'colorpickeralpha',
-					'heading'     => esc_attr__( 'Icon Circle Border Color', 'fusion-builder' ),
-					'description' => esc_attr__( 'Controls the color of the circle border. ', 'fusion-builder' ),
-					'param_name'  => 'circlebordercolor',
-					'value'       => '',
-					'default'     => $fusion_settings->get( 'icon_border_color' ),
-					'group'       => esc_attr__( 'Design', 'fusion-builder' ),
-					'dependency'  => array(
-						array(
-							'element'  => 'circle',
-							'value'    => 'yes',
-							'operator' => '==',
-						),
-					),
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Alignment', 'fusion-builder' ),
-					'description' => esc_attr__( "Select the icon's alignment.", 'fusion-builder' ),
-					'param_name'  => 'alignment',
-					'value'       => array(
-						''       => esc_attr__( 'Text Flow', 'fusion-builder' ),
-						'center' => esc_attr__( 'Center', 'fusion-builder' ),
-						'left'   => esc_attr__( 'Left', 'fusion-builder' ),
-						'right'  => esc_attr__( 'Right', 'fusion-builder' ),
-					),
-					'default'     => '',
-				),
-				array(
-					'type'        => 'checkbox_button_set',
-					'heading'     => esc_attr__( 'Element Visibility', 'fusion-builder' ),
-					'param_name'  => 'hide_on_mobile',
-					'value'       => fusion_builder_visibility_options( 'full' ),
-					'default'     => fusion_builder_default_visibility( 'array' ),
-					'description' => esc_attr__( 'Choose to show or hide the element on small, medium or large screens. You can choose more than one at a time.', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'textfield',
-					'heading'     => esc_attr__( 'CSS Class', 'fusion-builder' ),
-					'param_name'  => 'class',
-					'value'       => '',
-					'description' => esc_attr__( 'Add a class to the wrapping HTML element.', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'textfield',
-					'heading'     => esc_attr__( 'CSS ID', 'fusion-builder' ),
-					'param_name'  => 'id',
-					'value'       => '',
-					'description' => esc_attr__( 'Add an ID to the wrapping HTML element.', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'select',
-					'heading'     => esc_attr__( 'Animation Type', 'fusion-builder' ),
-					'description' => esc_attr__( 'Select the type of animation to use on the element.', 'fusion-builder' ),
-					'param_name'  => 'animation_type',
-					'value'       => fusion_builder_available_animations(),
-					'default'     => '',
-					'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
-				),
-				array(
-					'type'        => 'radio_button_set',
-					'heading'     => esc_attr__( 'Direction of Animation', 'fusion-builder' ),
-					'description' => esc_attr__( 'Select the incoming direction for the animation.', 'fusion-builder' ),
-					'param_name'  => 'animation_direction',
-					'value'       => array(
-						'down'   => esc_attr__( 'Top', 'fusion-builder' ),
-						'right'  => esc_attr__( 'Right', 'fusion-builder' ),
-						'up'     => esc_attr__( 'Bottom', 'fusion-builder' ),
-						'left'   => esc_attr__( 'Left', 'fusion-builder' ),
-						'static' => esc_attr__( 'Static', 'fusion-builder' ),
-					),
-					'default'     => 'down',
-					'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
-					'dependency'  => array(
-						array(
-							'element'  => 'animation_type',
-							'value'    => '',
-							'operator' => '!=',
-						),
-					),
-				),
-				array(
-					'type'        => 'select',
-					'heading'     => esc_attr__( 'Speed of Animation', 'fusion-builder' ),
-					'description' => esc_attr__( 'Type in speed of animation in seconds (0.1 - 1).', 'fusion-builder' ),
-					'param_name'  => 'animation_speed',
-					'value'       => array(
-						'1'   => '1',
-						'0.1' => '0.1',
-						'0.2' => '0.2',
-						'0.3' => '0.3',
-						'0.4' => '0.4',
-						'0.5' => '0.5',
-						'0.6' => '0.6',
-						'0.7' => '0.7',
-						'0.8' => '0.8',
-						'0.9' => '0.9',
-					),
-					'default'     => '0.1',
-					'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
-					'dependency'  => array(
-						array(
-							'element'  => 'animation_type',
-							'value'    => '',
-							'operator' => '!=',
-						),
-					),
-				),
-				array(
-					'type'        => 'select',
-					'heading'     => esc_attr__( 'Offset of Animation', 'fusion-builder' ),
-					'description' => esc_attr__( 'Controls when the animation should start.', 'fusion-builder' ),
-					'param_name'  => 'animation_offset',
-					'value'       => array(
-						''                => esc_attr__( 'Default', 'fusion-builder' ),
-						'top-into-view'   => esc_attr__( 'Top of element hits bottom of viewport', 'fusion-builder' ),
-						'top-mid-of-view' => esc_attr__( 'Top of element hits middle of viewport', 'fusion-builder' ),
-						'bottom-in-view'  => esc_attr__( 'Bottom of element enters viewport', 'fusion-builder' ),
-					),
-					'default'     => '',
-					'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
-					'dependency'  => array(
-						array(
-							'element'  => 'animation_type',
-							'value'    => '',
-							'operator' => '!=',
-						),
-					),
-				),
-			),
+		fusion_builder_frontend_data(
+			'FusionSC_FontAwesome',
+			[
+				'name'       => esc_attr__( 'Font Awesome Icon', 'fusion-builder' ),
+				'shortcode'  => 'fusion_fontawesome',
+				'icon'       => 'fusiona-flag',
+				'preview'    => FUSION_BUILDER_PLUGIN_DIR . 'inc/templates/previews/fusion-font-awesome-preview.php',
+				'preview_id' => 'fusion-builder-block-module-font-awesome-preview-template',
+				'help_url'   => 'https://theme-fusion.com/documentation/fusion-builder/elements/font-awesome-icon-element/',
+				'params'     => [
+					[
+						'type'        => 'iconpicker',
+						'heading'     => esc_attr__( 'Select Icon', 'fusion-builder' ),
+						'param_name'  => 'icon',
+						'value'       => 'fa-font-awesome-flag fab',
+						'description' => esc_attr__( 'Click an icon to select, click again to deselect.', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'textfield',
+						'heading'     => esc_attr__( 'Size of Icon', 'fusion-builder' ),
+						'description' => esc_attr__( 'Set the size of the icon. In pixels (px), ex: 13px.', 'fusion-builder' ),
+						'param_name'  => 'size',
+						'value'       => '',
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Flip Icon', 'fusion-builder' ),
+						'description' => esc_attr__( 'Choose to flip the icon.', 'fusion-builder' ),
+						'param_name'  => 'flip',
+						'value'       => [
+							''           => esc_attr__( 'None', 'fusion-builder' ),
+							'horizontal' => esc_attr__( 'Horizontal', 'fusion-builder' ),
+							'vertical'   => esc_attr__( 'Vertical', 'fusion-builder' ),
+						],
+						'default'     => '',
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Rotate Icon', 'fusion-builder' ),
+						'description' => esc_attr__( 'Choose to rotate the icon.', 'fusion-builder' ),
+						'param_name'  => 'rotate',
+						'value'       => [
+							''    => esc_attr__( 'None', 'fusion-builder' ),
+							'90'  => '90',
+							'180' => '180',
+							'270' => '270',
+						],
+						'default'     => '',
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Spinning Icon', 'fusion-builder' ),
+						'description' => esc_attr__( 'Choose to let the icon spin.', 'fusion-builder' ),
+						'param_name'  => 'spin',
+						'value'       => [
+							'yes' => esc_attr__( 'Yes', 'fusion-builder' ),
+							'no'  => esc_attr__( 'No', 'fusion-builder' ),
+						],
+						'default'     => 'no',
+					],
+					[
+						'type'             => 'dimension',
+						'remove_from_atts' => true,
+						'heading'          => esc_attr__( 'Margin', 'fusion-builder' ),
+						'description'      => __( 'Spacing around the font awesome icon. In px, em or %, e.g. 10px. <strong>Note:</strong> Leave empty for automatic margin calculation, based on alignment and icon size.', 'fusion-builder' ),
+						'param_name'       => 'margin',
+						'group'            => esc_attr__( 'Design', 'fusion-builder' ),
+						'value'            => [
+							'margin_top'    => '',
+							'margin_right'  => '',
+							'margin_bottom' => '',
+							'margin_left'   => '',
+						],
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Icon in Circle', 'fusion-builder' ),
+						'description' => esc_attr__( 'Choose to display the icon in a circle.', 'fusion-builder' ),
+						'param_name'  => 'circle',
+						'value'       => [
+							'yes' => esc_attr__( 'Yes', 'fusion-builder' ),
+							'no'  => esc_attr__( 'No', 'fusion-builder' ),
+						],
+						'default'     => 'yes',
+						'group'       => esc_attr__( 'Design', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'colorpickeralpha',
+						'heading'     => esc_attr__( 'Icon Color', 'fusion-builder' ),
+						'description' => esc_attr__( 'Controls the color of the icon. ', 'fusion-builder' ),
+						'param_name'  => 'iconcolor',
+						'value'       => '',
+						'default'     => $fusion_settings->get( 'icon_color' ),
+						'group'       => esc_attr__( 'Design', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'colorpickeralpha',
+						'heading'     => esc_attr__( 'Icon Circle Background Color', 'fusion-builder' ),
+						'description' => esc_attr__( 'Controls the color of the circle. ', 'fusion-builder' ),
+						'param_name'  => 'circlecolor',
+						'value'       => '',
+						'default'     => $fusion_settings->get( 'icon_circle_color' ),
+						'group'       => esc_attr__( 'Design', 'fusion-builder' ),
+						'dependency'  => [
+							[
+								'element'  => 'circle',
+								'value'    => 'yes',
+								'operator' => '==',
+							],
+						],
+					],
+					[
+						'type'        => 'colorpickeralpha',
+						'heading'     => esc_attr__( 'Icon Circle Border Color', 'fusion-builder' ),
+						'description' => esc_attr__( 'Controls the color of the circle border. ', 'fusion-builder' ),
+						'param_name'  => 'circlebordercolor',
+						'value'       => '',
+						'default'     => $fusion_settings->get( 'icon_border_color' ),
+						'group'       => esc_attr__( 'Design', 'fusion-builder' ),
+						'dependency'  => [
+							[
+								'element'  => 'circle',
+								'value'    => 'yes',
+								'operator' => '==',
+							],
+						],
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Alignment', 'fusion-builder' ),
+						'description' => esc_attr__( "Select the icon's alignment.", 'fusion-builder' ),
+						'param_name'  => 'alignment',
+						'value'       => [
+							''       => esc_attr__( 'Text Flow', 'fusion-builder' ),
+							'center' => esc_attr__( 'Center', 'fusion-builder' ),
+							'left'   => esc_attr__( 'Left', 'fusion-builder' ),
+							'right'  => esc_attr__( 'Right', 'fusion-builder' ),
+						],
+						'default'     => '',
+					],
+					[
+						'type'        => 'checkbox_button_set',
+						'heading'     => esc_attr__( 'Element Visibility', 'fusion-builder' ),
+						'param_name'  => 'hide_on_mobile',
+						'value'       => fusion_builder_visibility_options( 'full' ),
+						'default'     => fusion_builder_default_visibility( 'array' ),
+						'description' => esc_attr__( 'Choose to show or hide the element on small, medium or large screens. You can choose more than one at a time.', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'textfield',
+						'heading'     => esc_attr__( 'CSS Class', 'fusion-builder' ),
+						'param_name'  => 'class',
+						'value'       => '',
+						'description' => esc_attr__( 'Add a class to the wrapping HTML element.', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'textfield',
+						'heading'     => esc_attr__( 'CSS ID', 'fusion-builder' ),
+						'param_name'  => 'id',
+						'value'       => '',
+						'description' => esc_attr__( 'Add an ID to the wrapping HTML element.', 'fusion-builder' ),
+					],
+					[
+						'type'        => 'select',
+						'heading'     => esc_attr__( 'Animation Type', 'fusion-builder' ),
+						'description' => esc_attr__( 'Select the type of animation to use on the element.', 'fusion-builder' ),
+						'param_name'  => 'animation_type',
+						'value'       => fusion_builder_available_animations(),
+						'default'     => '',
+						'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
+						'preview'     => [
+							'selector' => '.fontawesome-icon',
+							'type'     => 'animation',
+						],
+					],
+					[
+						'type'        => 'radio_button_set',
+						'heading'     => esc_attr__( 'Direction of Animation', 'fusion-builder' ),
+						'description' => esc_attr__( 'Select the incoming direction for the animation.', 'fusion-builder' ),
+						'param_name'  => 'animation_direction',
+						'value'       => [
+							'down'   => esc_attr__( 'Top', 'fusion-builder' ),
+							'right'  => esc_attr__( 'Right', 'fusion-builder' ),
+							'up'     => esc_attr__( 'Bottom', 'fusion-builder' ),
+							'left'   => esc_attr__( 'Left', 'fusion-builder' ),
+							'static' => esc_attr__( 'Static', 'fusion-builder' ),
+						],
+						'default'     => 'down',
+						'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
+						'dependency'  => [
+							[
+								'element'  => 'animation_type',
+								'value'    => '',
+								'operator' => '!=',
+							],
+						],
+						'preview'     => [
+							'selector' => '.fa',
+							'type'     => 'animation',
+						],
+					],
+					[
+						'type'        => 'range',
+						'heading'     => esc_attr__( 'Speed of Animation', 'fusion-builder' ),
+						'description' => esc_attr__( 'Type in speed of animation in seconds (0.1 - 1).', 'fusion-builder' ),
+						'param_name'  => 'animation_speed',
+						'min'         => '0.1',
+						'max'         => '1',
+						'step'        => '0.1',
+						'value'       => '0.3',
+						'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
+						'dependency'  => [
+							[
+								'element'  => 'animation_type',
+								'value'    => '',
+								'operator' => '!=',
+							],
+						],
+						'preview'     => [
+							'selector' => '.fa',
+							'type'     => 'animation',
+						],
+					],
+					[
+						'type'        => 'select',
+						'heading'     => esc_attr__( 'Offset of Animation', 'fusion-builder' ),
+						'description' => esc_attr__( 'Controls when the animation should start.', 'fusion-builder' ),
+						'param_name'  => 'animation_offset',
+						'value'       => [
+							''                => esc_attr__( 'Default', 'fusion-builder' ),
+							'top-into-view'   => esc_attr__( 'Top of element hits bottom of viewport', 'fusion-builder' ),
+							'top-mid-of-view' => esc_attr__( 'Top of element hits middle of viewport', 'fusion-builder' ),
+							'bottom-in-view'  => esc_attr__( 'Bottom of element enters viewport', 'fusion-builder' ),
+						],
+						'default'     => '',
+						'group'       => esc_attr__( 'Animation', 'fusion-builder' ),
+						'dependency'  => [
+							[
+								'element'  => 'animation_type',
+								'value'    => '',
+								'operator' => '!=',
+							],
+						],
+					],
+				],
+			]
 		)
 	);
 }

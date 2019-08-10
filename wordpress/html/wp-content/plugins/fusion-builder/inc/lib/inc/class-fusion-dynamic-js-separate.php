@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * Handles enqueueing files dynamically.
  */
@@ -36,7 +31,7 @@ final class Fusion_Dynamic_JS_Separate {
 
 		$this->dynamic_js = $dynamic_js;
 
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_separate_scripts' ) );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_separate_scripts' ] );
 	}
 
 	/**
@@ -57,7 +52,7 @@ final class Fusion_Dynamic_JS_Separate {
 			}
 
 			// Strip protocols.
-			$script['url']  = set_url_scheme( $script['url'] );
+			$script['url'] = set_url_scheme( $script['url'] );
 
 			wp_enqueue_script(
 				$script['handle'],

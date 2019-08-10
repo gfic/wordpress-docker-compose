@@ -1,13 +1,11 @@
 <?php
 /**
- * Defines a class with methods for cleaning up plugin data. To be used when
- * the plugin is deleted.
+ * File containing the class WP_Job_Manager_Data_Cleaner.
  *
- * @package Core
+ * @package wp-job-manager
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	// Exit if accessed directly.
 	exit;
 }
 
@@ -45,9 +43,11 @@ class WP_Job_Manager_Data_Cleaner {
 	private static $cron_jobs = array(
 		'job_manager_check_for_expired_jobs',
 		'job_manager_delete_old_previews',
-		'job_manager_clear_expired_transients',
 		'job_manager_email_daily_notices',
 		'job_manager_usage_tracking_send_usage_data',
+
+		// Old cron jobs.
+		'job_manager_clear_expired_transients',
 	);
 
 	/**
@@ -117,7 +117,7 @@ class WP_Job_Manager_Data_Cleaner {
 	 * @var $transients
 	 */
 	private static $transients = array(
-		'_job_manager_activation_redirect',
+		'_job_manager_activation_redirect', // Legacy transient that should still be removed.
 		'get_job_listings-transient-version',
 		'jm_.*',
 	);
@@ -216,6 +216,8 @@ class WP_Job_Manager_Data_Cleaner {
 	private static function cleanup_taxonomies() {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 		foreach ( self::$taxonomies as $taxonomy ) {
 			$terms = $wpdb->get_results(
 				$wpdb->prepare(
@@ -236,6 +238,9 @@ class WP_Job_Manager_Data_Cleaner {
 				clean_taxonomy_cache( $taxonomy );
 			}
 		}
+
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -293,6 +298,8 @@ class WP_Job_Manager_Data_Cleaner {
 	private static function cleanup_transients() {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 		foreach ( array( '_transient_', '_transient_timeout_' ) as $prefix ) {
 			foreach ( self::$transients as $transient ) {
 				$wpdb->query(
@@ -303,6 +310,8 @@ class WP_Job_Manager_Data_Cleaner {
 				);
 			}
 		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -351,7 +360,9 @@ class WP_Job_Manager_Data_Cleaner {
 		global $wpdb;
 
 		foreach ( self::$user_meta_keys as $meta_key ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery -- Delete data across all users.
 			$wpdb->delete( $wpdb->usermeta, array( 'meta_key' => $meta_key ) );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
 		}
 	}
 

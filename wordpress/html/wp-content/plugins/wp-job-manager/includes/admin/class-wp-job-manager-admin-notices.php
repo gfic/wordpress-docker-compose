@@ -1,12 +1,12 @@
 <?php
 /**
- * Handles notices in WP admin.
+ * File containing the class WP_Job_Manager_Admin_Notices.
  *
  * @package wp-job-manager
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 1.32.0
  */
 class WP_Job_Manager_Admin_Notices {
-	const STATE_OPTION = 'job_manager_admin_notices';
+	const STATE_OPTION      = 'job_manager_admin_notices';
 	const NOTICE_CORE_SETUP = 'core_setup';
 
 	/**
@@ -44,7 +44,7 @@ class WP_Job_Manager_Admin_Notices {
 	public static function add_notice( $notice ) {
 		$notice = sanitize_key( $notice );
 
-		if ( ! in_array( $notice, self::get_notice_state() ) ) {
+		if ( ! in_array( $notice, self::get_notice_state(), true ) ) {
 			self::$notice_state[] = $notice;
 			self::save_notice_state();
 		}
@@ -104,8 +104,8 @@ class WP_Job_Manager_Admin_Notices {
 	 * Dismiss notices as requested by user. Inspired by WooCommerce's approach.
 	 */
 	public static function dismiss_notices() {
-		if ( isset( $_GET['wpjm_hide_notice'] ) && isset( $_GET['_wpjm_notice_nonce'] ) ) { // WPCS: input var ok, CSRF ok.
-			if ( ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpjm_notice_nonce'] ) ), 'job_manager_hide_notices_nonce' ) ) { // WPCS: input var ok, CSRF ok.
+		if ( isset( $_GET['wpjm_hide_notice'] ) && isset( $_GET['_wpjm_notice_nonce'] ) ) {
+			if ( ! wp_verify_nonce( wp_unslash( $_GET['_wpjm_notice_nonce'] ), 'job_manager_hide_notices_nonce' ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce should not be modified.
 				wp_die( esc_html__( 'Action failed. Please refresh the page and retry.', 'wp-job-manager' ) );
 			}
 
@@ -113,10 +113,12 @@ class WP_Job_Manager_Admin_Notices {
 				wp_die( esc_html__( 'You don&#8217;t have permission to do this.', 'wp-job-manager' ) );
 			}
 
-			$hide_notice = sanitize_key( wp_unslash( $_GET['wpjm_hide_notice'] ) ); // WPCS: input var ok, CSRF ok.
+			$hide_notice = sanitize_key( wp_unslash( $_GET['wpjm_hide_notice'] ) );
 
 			self::remove_notice( $hide_notice );
-			wp_redirect( remove_query_arg( array( 'wpjm_hide_notice', '_wpjm_notice_nonce' ), $_SERVER['REQUEST_URI'] ) );
+
+			wp_safe_redirect( remove_query_arg( array( 'wpjm_hide_notice', '_wpjm_notice_nonce' ) ) );
+			exit;
 		}
 	}
 
@@ -166,13 +168,16 @@ class WP_Job_Manager_Admin_Notices {
 	public static function is_admin_on_standard_job_manager_screen( $additional_screens = array() ) {
 		$screen          = get_current_screen();
 		$screen_id       = $screen ? $screen->id : '';
-		$show_on_screens = array_merge( array(
-			'edit-job_listing',
-			'edit-job_listing_category',
-			'edit-job_listing_type',
-			'job_listing_page_job-manager-addons',
-			'job_listing_page_job-manager-settings',
-		), $additional_screens );
+		$show_on_screens = array_merge(
+			array(
+				'edit-job_listing',
+				'edit-job_listing_category',
+				'edit-job_listing_type',
+				'job_listing_page_job-manager-addons',
+				'job_listing_page_job-manager-settings',
+			),
+			$additional_screens
+		);
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return false;

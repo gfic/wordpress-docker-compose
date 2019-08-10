@@ -6,7 +6,7 @@
  *
  * @author      Mike Jolley
  * @category    Core
- * @package     Job Manager/Template
+ * @package     wp-job-manager
  * @version     1.25.3
  */
 
@@ -21,8 +21,8 @@
  */
 function get_job_manager_template( $template_name, $args = array(), $template_path = 'job_manager', $default_path = '' ) {
 	if ( $args && is_array( $args ) ) {
-		// Please, forgive us.
-		extract( $args ); // phpcs:ignore WordPress.Functions.DontExtract.extract_extract
+		// phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- Please, forgive us.
+		extract( $args );
 	}
 	include locate_job_manager_template( $template_name, $template_path, $default_path );
 }
@@ -531,7 +531,7 @@ function wpjm_get_the_job_title( $post = null ) {
 function wpjm_the_job_description( $post = null ) {
 	$job_description = wpjm_get_the_job_description( $post );
 	if ( $job_description ) {
-		echo wp_kses_post( $job_description );
+		WP_Job_Manager_Post_Types::output_kses_post( $job_description );
 	}
 }
 
@@ -548,13 +548,13 @@ function wpjm_get_the_job_description( $post = null ) {
 		return null;
 	}
 
-	$description = apply_filters( 'the_job_description', get_the_content( $post ) );
+	$description = apply_filters( 'the_job_description', wp_kses_post( $post->post_content ) );
 
 	/**
 	 * Filter for the job description.
 	 *
 	 * @since 1.28.0
-	 * @param string      $title Title to be filtered.
+	 * @param string      $job_description Job description to be filtered.
 	 * @param int|WP_Post $post
 	 */
 	return apply_filters( 'wpjm_the_job_description', $description, $post );
@@ -692,7 +692,8 @@ function wpjm_get_registration_fields() {
 				'type'     => 'text',
 				'label'    => esc_html__( 'Username', 'wp-job-manager' ),
 				'required' => $account_required,
-				'value'    => isset( $_POST['create_account_username'] ) ? $_POST['create_account_username'] : '',
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Just used to populate value when validation failed.
+				'value'    => isset( $_POST['create_account_username'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_username'] ) ) : '',
 			);
 		}
 		if ( ! $use_standard_password_setup_email ) {
@@ -718,7 +719,8 @@ function wpjm_get_registration_fields() {
 			'label'       => esc_html__( 'Your email', 'wp-job-manager' ),
 			'placeholder' => __( 'you@yourdomain.com', 'wp-job-manager' ),
 			'required'    => $account_required,
-			'value'       => isset( $_POST['create_account_email'] ) ? $_POST['create_account_email'] : '',
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Just used to populate value when validation failed.
+			'value'       => isset( $_POST['create_account_email'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_email'] ) ) : '',
 		);
 	}
 
@@ -788,7 +790,8 @@ function the_job_location( $map_link = true, $post = null ) {
 				apply_filters(
 					'the_job_location_map_link',
 					'<a class="google_map_link" href="' . esc_url( 'http://maps.google.com/maps?q=' . rawurlencode( wp_strip_all_tags( $location ) ) . '&zoom=14&size=512x512&maptype=roadmap&sensor=false' ) . '">' . esc_html( wp_strip_all_tags( $location ) ) . '</a>',
-					$location, $post
+					$location,
+					$post
 				)
 			);
 		} else {
@@ -875,9 +878,10 @@ function get_the_company_logo( $post = null, $size = 'thumbnail' ) {
 function job_manager_get_resized_image( $logo, $size ) {
 	global $_wp_additional_image_sizes;
 
-	if ( 'full' !== $size
-		 && strstr( $logo, WP_CONTENT_URL )
-		 && ( isset( $_wp_additional_image_sizes[ $size ] ) || in_array( $size, array( 'thumbnail', 'medium', 'large' ), true ) )
+	if (
+		'full' !== $size
+		&& strstr( $logo, WP_CONTENT_URL )
+		&& ( isset( $_wp_additional_image_sizes[ $size ] ) || in_array( $size, array( 'thumbnail', 'medium', 'large' ), true ) )
 	) {
 
 		if ( in_array( $size, array( 'thumbnail', 'medium', 'large' ), true ) ) {
@@ -953,7 +957,8 @@ function the_company_video( $post = null ) {
 	$video_embed = apply_filters( 'the_company_video_embed', $video_embed, $post );
 
 	if ( $video_embed ) {
-		echo '<div class="company_video">' . $video_embed . '</div>'; // WPCS: XSS ok.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<div class="company_video">' . $video_embed . '</div>';
 	}
 }
 

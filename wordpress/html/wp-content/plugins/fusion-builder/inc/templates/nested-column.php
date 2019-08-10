@@ -1,3 +1,11 @@
+<?php
+/**
+ * An underscore.js template.
+ *
+ * @package fusion-builder
+ */
+
+?>
 <script type="text/template" id="fusion-builder-inner-column-template">
 	<div class="column-sizes" style="top:46px;">
 		<div class="column-size column-size-1_6" data-column-size="1_6">1/6</div>

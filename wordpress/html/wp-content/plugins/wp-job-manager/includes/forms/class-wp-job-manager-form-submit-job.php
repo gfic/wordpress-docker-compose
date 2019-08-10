@@ -1,9 +1,17 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Form_Submit_Job.
+ *
+ * @package wp-job-manager
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
  * Handles the editing of Job Listings from the public facing frontend (from within `[submit_job_form]` shortcode).
  *
- * @package wp-job-manager
  * @extends WP_Job_Manager_Form
  * @since 1.0.0
  */
@@ -38,7 +46,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 	 * @access protected
 	 * @var WP_Job_Manager_Form_Submit_Job The single instance of the class
 	 */
-	protected static $_instance = null;
+	protected static $instance = null;
 
 	/**
 	 * Returns static instance of class.
@@ -46,10 +54,10 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 	 * @return self
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self();
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
 		}
-		return self::$_instance;
+		return self::$instance;
 	}
 
 	/**
@@ -59,10 +67,12 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		add_action( 'wp', array( $this, 'process' ) );
 		add_action( 'submit_job_form_start', array( $this, 'output_submit_form_nonce_field' ) );
 		add_action( 'preview_job_form_start', array( $this, 'output_preview_form_nonce_field' ) );
+		add_action( 'job_manager_job_submitted', array( $this, 'track_job_submission' ) );
 
 		if ( $this->use_recaptcha_field() ) {
 			add_action( 'submit_job_form_end', array( $this, 'display_recaptcha_field' ) );
-			add_action( 'submit_job_form_validate_fields', array( $this, 'validate_recaptcha_field' ) );
+			add_filter( 'submit_job_form_validate_fields', array( $this, 'validate_recaptcha_field' ) );
+			add_filter( 'submit_draft_job_form_validate_fields', array( $this, 'validate_recaptcha_field' ) );
 		}
 
 		$this->steps = (array) apply_filters(
@@ -91,6 +101,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 
 		uasort( $this->steps, array( $this, 'sort_by_priority' ) );
 
+		// phpcs:disable WordPress.Security.NonceVerification.Missing,  WordPress.Security.NonceVerification.Recommended -- Check happens later when possible. Input is used safely.
 		// Get step/job.
 		if ( isset( $_POST['step'] ) ) {
 			$this->step = is_numeric( $_POST['step'] ) ? max( absint( $_POST['step'] ), 0 ) : array_search( intval( $_POST['step'] ), array_keys( $this->steps ), true );
@@ -99,6 +110,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		}
 
 		$this->job_id = ! empty( $_REQUEST['job_id'] ) ? absint( $_REQUEST['job_id'] ) : 0;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing,  WordPress.Security.NonceVerification.Recommended
 
 		if ( ! job_manager_user_can_edit_job( $this->job_id ) ) {
 			$this->job_id = 0;
@@ -106,11 +118,25 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 
 		// Allow resuming from cookie.
 		$this->resume_edit = false;
-		if ( ! isset( $_GET['new'] ) && ( 'before' === get_option( 'job_manager_paid_listings_flow' ) || ! $this->job_id ) && ! empty( $_COOKIE['wp-job-manager-submitting-job-id'] ) && ! empty( $_COOKIE['wp-job-manager-submitting-job-key'] ) ) {
+		if (
+			! isset( $_GET['new'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Input is used safely.
+			&& (
+				'before' === get_option( 'job_manager_paid_listings_flow' )
+				|| ! $this->job_id
+			)
+			&& ! empty( $_COOKIE['wp-job-manager-submitting-job-id'] )
+			&& ! empty( $_COOKIE['wp-job-manager-submitting-job-key'] )
+		) {
 			$job_id     = absint( $_COOKIE['wp-job-manager-submitting-job-id'] );
 			$job_status = get_post_status( $job_id );
 
-			if ( ( 'preview' === $job_status || 'pending_payment' === $job_status ) && get_post_meta( $job_id, '_submitting_key', true ) === $_COOKIE['wp-job-manager-submitting-job-key'] ) {
+			if (
+				(
+					'preview' === $job_status
+					|| 'pending_payment' === $job_status
+				)
+				&& get_post_meta( $job_id, '_submitting_key', true ) === $_COOKIE['wp-job-manager-submitting-job-key']
+			) {
 				$this->job_id      = $job_id;
 				$this->resume_edit = get_post_meta( $job_id, '_submitting_key', true );
 			}
@@ -152,12 +178,12 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		switch ( $allowed_application_method ) {
 			case 'email':
 				$application_method_label       = __( 'Application email', 'wp-job-manager' );
-				$application_method_placeholder = __( 'you@yourdomain.com', 'wp-job-manager' );
+				$application_method_placeholder = __( 'you@example.com', 'wp-job-manager' );
 				$application_method_sanitizer   = 'email';
 				break;
 			case 'url':
 				$application_method_label       = __( 'Application URL', 'wp-job-manager' );
-				$application_method_placeholder = __( 'http://', 'wp-job-manager' );
+				$application_method_placeholder = __( 'https://', 'wp-job-manager' );
 				$application_method_sanitizer   = 'url';
 				break;
 			default:
@@ -365,6 +391,26 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 						}
 					}
 				}
+				if ( empty( $field['file_limit'] ) && empty( $field['multiple'] ) ) {
+					$field['file_limit'] = 1;
+				}
+				if ( 'file' === $field['type'] && ! empty( $field['file_limit'] ) ) {
+					$file_limit = intval( $field['file_limit'] );
+					if ( is_array( $values[ $group_key ][ $key ] ) ) {
+						$check_value = array_filter( $values[ $group_key ][ $key ] );
+					} else {
+						$check_value = array_filter( array( $values[ $group_key ][ $key ] ) );
+					}
+					if ( count( $check_value ) > $file_limit ) {
+						// translators: Placeholder %d is the number of files to that users are limited to.
+						$message = esc_html__( 'You are only allowed to upload a maximum of %d files.', 'wp-job-manager' );
+						if ( ! empty( $field['file_limit_message'] ) ) {
+							$message = $field['file_limit_message'];
+						}
+
+						throw new Exception( esc_html( sprintf( $message, $file_limit ) ) );
+					}
+				}
 			}
 		}
 
@@ -401,6 +447,15 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			}
 		}
 
+		/**
+		 * Perform additional validation on the job submission fields.
+		 *
+		 * @since 1.0.4
+		 *
+		 * @param bool  $is_valid Whether the fields are valid.
+		 * @param array $fields   Array of all fields being validated.
+		 * @param array $values   Submitted input values.
+		 */
 		return apply_filters( 'submit_job_form_validate_fields', true, $this->fields, $values );
 	}
 
@@ -492,7 +547,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			$this->fields = apply_filters( 'submit_job_form_fields_get_job_data', $this->fields, $job );
 
 			// Get user meta.
-		} elseif ( is_user_logged_in() && empty( $_POST['submit_job'] ) ) {
+		} elseif ( is_user_logged_in() && empty( $_POST['submit_job'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Safe input.
 			if ( ! empty( $this->fields['company'] ) ) {
 				foreach ( $this->fields['company'] as $key => $field ) {
 					$this->fields['company'][ $key ]['value'] = get_user_meta( get_current_user_id(), '_' . $key, true );
@@ -519,6 +574,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 				'job_fields'         => $this->get_fields( 'job' ),
 				'company_fields'     => $this->get_fields( 'company' ),
 				'step'               => $this->get_step(),
+				'can_continue_later' => $this->can_continue_later(),
 				'submit_button_text' => apply_filters( 'submit_job_form_submit_button_text', __( 'Preview', 'wp-job-manager' ) ),
 			)
 		);
@@ -537,14 +593,36 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			// Get posted values.
 			$values = $this->get_posted_fields();
 
-			if ( empty( $_POST['submit_job'] ) ) {
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- Input is used safely. Nonce checked below when possible.
+			$input_create_account_username        = isset( $_POST['create_account_username'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_username'] ) ) : false;
+			$input_create_account_password        = isset( $_POST['create_account_password'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_password'] ) ) : false;
+			$input_create_account_password_verify = isset( $_POST['create_account_password_verify'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_password_verify'] ) ) : false;
+			$input_create_account_email           = isset( $_POST['create_account_email'] ) ? sanitize_text_field( wp_unslash( $_POST['create_account_email'] ) ) : false;
+			$is_saving_draft                      = $this->can_continue_later() && ! empty( $_POST['save_draft'] );
+
+			if ( empty( $_POST['submit_job'] ) && ! $is_saving_draft ) {
 				return;
 			}
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 			$this->check_submit_form_nonce_field();
 
-			// Validate required.
-			$validation_status = $this->validate_fields( $values );
+			// Validate fields.
+			if ( $is_saving_draft ) {
+				/**
+				 * Perform additional validation on the job submission fields when saving drafts.
+				 *
+				 * @since 1.33.1
+				 *
+				 * @param bool  $is_valid Whether the fields are valid.
+				 * @param array $fields   Array of all fields being validated.
+				 * @param array $values   Submitted input values.
+				 */
+				$validation_status = apply_filters( 'submit_draft_job_form_validate_fields', true, $this->fields, $values );
+			} else {
+				$validation_status = $this->validate_fields( $values );
+			}
+
 			if ( is_wp_error( $validation_status ) ) {
 				throw new Exception( $validation_status->get_error_message() );
 			}
@@ -555,24 +633,24 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 
 				if ( job_manager_enable_registration() ) {
 					if ( job_manager_user_requires_account() ) {
-						if ( ! job_manager_generate_username_from_email() && empty( $_POST['create_account_username'] ) ) {
+						if ( ! job_manager_generate_username_from_email() && empty( $input_create_account_username ) ) {
 							throw new Exception( __( 'Please enter a username.', 'wp-job-manager' ) );
 						}
 						if ( ! wpjm_use_standard_password_setup_email() ) {
-							if ( empty( $_POST['create_account_password'] ) ) {
+							if ( empty( $input_create_account_password ) ) {
 								throw new Exception( __( 'Please enter a password.', 'wp-job-manager' ) );
 							}
 						}
-						if ( empty( $_POST['create_account_email'] ) ) {
+						if ( empty( $input_create_account_email ) ) {
 							throw new Exception( __( 'Please enter your email address.', 'wp-job-manager' ) );
 						}
 					}
 
-					if ( ! wpjm_use_standard_password_setup_email() && ! empty( $_POST['create_account_password'] ) ) {
-						if ( empty( $_POST['create_account_password_verify'] ) || $_POST['create_account_password_verify'] !== $_POST['create_account_password'] ) {
+					if ( ! wpjm_use_standard_password_setup_email() && ! empty( $input_create_account_password ) ) {
+						if ( empty( $input_create_account_password_verify ) || $input_create_account_password_verify !== $input_create_account_password ) {
 							throw new Exception( __( 'Passwords must match.', 'wp-job-manager' ) );
 						}
-						if ( ! wpjm_validate_new_password( $_POST['create_account_password'] ) ) {
+						if ( ! wpjm_validate_new_password( sanitize_text_field( wp_unslash( $input_create_account_password ) ) ) ) {
 							$password_hint = wpjm_get_password_rules_hint();
 							if ( $password_hint ) {
 								// translators: Placeholder %s is the password hint.
@@ -583,12 +661,12 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 						}
 					}
 
-					if ( ! empty( $_POST['create_account_email'] ) ) {
+					if ( ! empty( $input_create_account_email ) ) {
 						$create_account = wp_job_manager_create_account(
 							array(
-								'username' => ( job_manager_generate_username_from_email() || empty( $_POST['create_account_username'] ) ) ? '' : $_POST['create_account_username'],
-								'password' => ( wpjm_use_standard_password_setup_email() || empty( $_POST['create_account_password'] ) ) ? '' : $_POST['create_account_password'],
-								'email'    => $_POST['create_account_email'],
+								'username' => ( job_manager_generate_username_from_email() || empty( $input_create_account_username ) ) ? '' : $input_create_account_username,
+								'password' => ( wpjm_use_standard_password_setup_email() || empty( $input_create_account_password ) ) ? '' : $input_create_account_password,
+								'email'    => sanitize_text_field( wp_unslash( $input_create_account_email ) ),
 								'role'     => get_option( 'job_manager_registration_role' ),
 							)
 						);
@@ -605,7 +683,9 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			}
 
 			$post_status = '';
-			if ( ! $this->job_id || 'draft' === get_post_status( $this->job_id ) ) {
+			if ( $is_saving_draft ) {
+				$post_status = 'draft';
+			} elseif ( ! $this->job_id || 'draft' === get_post_status( $this->job_id ) ) {
 				$post_status = 'preview';
 			}
 
@@ -613,9 +693,15 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			$this->save_job( $values['job']['job_title'], $values['job']['job_description'], $post_status, $values );
 			$this->update_job_data( $values );
 
-			// Successful, show next step.
-			$this->step ++;
+			if ( $is_saving_draft ) {
+				$job_dashboard_page_id = get_option( 'job_manager_job_dashboard_page_id', false );
 
+				// translators: placeholder is the URL to the job dashboard page.
+				$this->add_message( sprintf( __( 'Draft was saved. Job listing drafts can be resumed from the <a href="%s">job dashboard</a>.', 'wp-job-manager' ), get_permalink( $job_dashboard_page_id ) ) );
+			} else {
+				// Successful, show next step.
+				$this->step++;
+			}
 		} catch ( Exception $e ) {
 			$this->add_error( $e->getMessage() );
 			return;
@@ -712,7 +798,7 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 			return 0;
 		}
 
-		$attachment_url_parts = parse_url( $attachment_url );
+		$attachment_url_parts = wp_parse_url( $attachment_url );
 
 		// Relative paths aren't allowed.
 		if ( false !== strpos( $attachment_url_parts['path'], '../' ) ) {
@@ -839,8 +925,9 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		global $post, $job_preview;
 
 		if ( $this->job_id ) {
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Job preview depends on temporary override. Reset below.
+			$post              = get_post( $this->job_id );
 			$job_preview       = true;
-			$post              = get_post( $this->job_id ); // WPCS: override ok.
 			$post->post_status = 'preview';
 
 			setup_postdata( $post );
@@ -860,19 +947,20 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 	 * Handles the preview step form response.
 	 */
 	public function preview_handler() {
-		if ( ! $_POST ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Input is used safely.
+		if ( empty( $_POST ) ) {
 			return;
 		}
 
 		$this->check_preview_form_nonce_field();
 
 		// Edit = show submit form again.
-		if ( ! empty( $_POST['edit_job'] ) ) {
+		if ( ! empty( $_POST['edit_job'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Input is used safely.
 			$this->step --;
 		}
 
 		// Continue = change job status then show next screen.
-		if ( ! empty( $_POST['continue'] ) ) {
+		if ( ! empty( $_POST['continue'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Input is used safely.
 			$job = get_post( $this->job_id );
 
 			if ( in_array( $job->post_status, array( 'preview', 'expired' ), true ) ) {
@@ -911,7 +999,10 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
-		if ( empty( $_REQUEST['_wpjm_nonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpjm_nonce'], 'submit-job-' . $this->job_id ) ) {
+		if (
+			empty( $_REQUEST['_wpjm_nonce'] )
+			|| ! wp_verify_nonce( wp_unslash( $_REQUEST['_wpjm_nonce'] ), 'submit-job-' . $this->job_id ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce should not be modified.
+		) {
 			wp_nonce_ays( 'submit-job-' . $this->job_id );
 			die();
 		}
@@ -934,7 +1025,11 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
-		if ( empty( $_REQUEST['_wpjm_nonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpjm_nonce'], 'preview-job-' . $this->job_id ) ) {
+
+		if (
+			empty( $_REQUEST['_wpjm_nonce'] )
+			|| ! wp_verify_nonce( wp_unslash( $_REQUEST['_wpjm_nonce'] ), 'preview-job-' . $this->job_id ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce should not be modified.
+		) {
 			wp_nonce_ays( 'preview-job-' . $this->job_id );
 			die();
 		}
@@ -952,5 +1047,48 @@ class WP_Job_Manager_Form_Submit_Job extends WP_Job_Manager_Form {
 	 */
 	public function done_before() {
 		do_action( 'job_manager_job_submitted', $this->job_id );
+	}
+
+	/**
+	 * Checks if we can resume submission later.
+	 *
+	 * @return bool
+	 */
+	protected function can_continue_later() {
+		$can_continue_later    = false;
+		$job_dashboard_page_id = get_option( 'job_manager_job_dashboard_page_id', false );
+
+		if ( ! $job_dashboard_page_id ) {
+			// For now, we're going to block resuming later if no job dashboard page has been set.
+			$can_continue_later = false;
+		} elseif ( is_user_logged_in() ) {
+			// If they're logged in, we can assume they can access the job dashboard to resume later.
+			$can_continue_later = true;
+		} elseif ( job_manager_user_requires_account() && job_manager_enable_registration() ) {
+			// If these are enabled, we know an account will be created on save.
+			$can_continue_later = true;
+		}
+
+		/**
+		 * Override if visitor can resume job submission later.
+		 *
+		 * @param bool $can_continue_later True if they can resume job later.
+		 */
+		return apply_filters( 'submit_job_form_can_continue_later', $can_continue_later );
+	}
+
+	/**
+	 * Send usage tracking event for job submission.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public function track_job_submission( $post_id ) {
+		WP_Job_Manager_Usage_Tracking::track_job_submission(
+			$post_id,
+			array(
+				'source'     => 'frontend',
+				'old_status' => 'preview',
+			)
+		);
 	}
 }

@@ -1,5 +1,8 @@
 *** WooCommerce Square Changelog ***
 
+= 1.0.38 - 2019-07-05 =
+* Fix - Re-deploy due to erroneous inclusion of trunk folder
+
 = 1.0.37 - 2019-04-16 =
 * Fix - Use correct assets loading scheme.
 

@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * The main Fusion library object.
  */
@@ -52,7 +47,7 @@ class Fusion {
 	public $multilingual;
 
 	/**
-	 * And instance of the Fusion_Scripts class.
+	 * An instance of the Fusion_Scripts class.
 	 *
 	 * @access public
 	 * @since 1.0.0
@@ -61,7 +56,16 @@ class Fusion {
 	public $scripts;
 
 	/**
-	 * And instance of the Fusion_Dynamic_JS class.
+	 * An instance of the Fusion_Panel class.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @var object Fusion_Scripts
+	 */
+	public $panel;
+
+	/**
+	 * An instance of the Fusion_Dynamic_JS class.
 	 *
 	 * @access public
 	 * @since 1.0.0
@@ -70,18 +74,48 @@ class Fusion {
 	public $dynamic_js;
 
 	/**
+	 * An instance of the Fusion_Font_Awesome class.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @var object Fusion_Font_Awesome
+	 */
+	public $fa;
+
+	/**
+	 * Fusion_Social_Sharing.
+	 *
+	 * @access public
+	 * @since 1.9.2
+	 * @var object
+	 */
+	public $social_sharing;
+
+	/**
+	 * An instance of the Fusion_Media_Query_Scripts class.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @var object Fusion_Media_Query_Scripts
+	 */
+	public $mq_scripts;
+
+	/**
 	 * The class constructor
 	 */
 	private function __construct() {
-		add_action( 'wp', array( $this, 'set_page_id' ) );
+		add_action( 'wp', [ $this, 'set_page_id' ] );
+		add_action( 'plugins_loaded', [ $this, 'multilingual_data' ] );
 
 		if ( ! defined( 'AVADA_VERSION' ) ) {
-			$this->images       = new Fusion_Images();
+			$this->images = new Fusion_Images();
 		}
-		$this->sanitize     = new Fusion_Sanitize();
-		$this->multilingual = new Fusion_Multilingual();
-		$this->scripts      = new Fusion_Scripts();
-		$this->dynamic_js   = new Fusion_Dynamic_JS();
+		$this->sanitize       = new Fusion_Sanitize();
+		$this->scripts        = new Fusion_Scripts();
+		$this->dynamic_js     = new Fusion_Dynamic_JS();
+		$this->mq_scripts     = new Fusion_Media_Query_Scripts();
+		$this->fa             = new Fusion_Font_Awesome();
+		$this->social_sharing = new Fusion_Social_Sharing();
 
 		if ( $this->supported_plugins_changed() && class_exists( 'Fusion_Cache' ) ) {
 			$fusion_cache = new Fusion_Cache();
@@ -92,7 +126,9 @@ class Fusion {
 			new Fusion_Privacy();
 		}
 
-		add_action( 'admin_body_class', array( $this, 'admin_body_class' ) );
+		add_action( 'admin_body_class', [ $this, 'admin_body_class' ] );
+
+		add_action( 'wp_head', [ $this, 'add_analytics_code' ], 10000 );
 	}
 
 	/**
@@ -116,7 +152,7 @@ class Fusion {
 		if ( ! self::$c_page_id ) {
 			$this->set_page_id();
 		}
-		return self::$c_page_id;
+		return apply_filters( 'fusion-page-id', self::$c_page_id ); // phpcs:ignore WordPress.NamingConventions.ValidHookName
 	}
 
 	/**
@@ -142,6 +178,10 @@ class Fusion {
 		}
 
 		$c_page_id = get_queried_object_id();
+		if ( ( function_exists( 'fusion_is_preview_frame' ) && fusion_is_preview_frame() ) || ( function_exists( 'fusion_is_builder_frame' ) && fusion_is_builder_frame() ) ) {
+			$page_id   = isset( $_POST['post_id'] ) ? (int) sanitize_text_field( wp_unslash( $_POST['post_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			$c_page_id = $page_id ? $page_id : $c_page_id;
+		}
 
 		// The WooCommerce shop page.
 		if ( ! is_admin() && class_exists( 'WooCommerce' ) && is_shop() ) {
@@ -191,19 +231,19 @@ class Fusion {
 	 * @return bool True if changed, false if unchanged.
 	 */
 	protected function supported_plugins_changed() {
-		$classes_to_check = array(
+		$classes_to_check   = [
 			'WPCF7',
 			'bbPress',
 			'WooCommerce',
 			'Tribe__Events__Main',
-		);
-		$constants_to_check = array(
+		];
+		$constants_to_check = [
 			'LS_PLUGIN_VERSION',
 			'RS_PLUGIN_PATH',
-		);
+		];
 
-		$supported_saved    = get_option( 'fusion_supported_plugins_active', array() );
-		$supported_detected = array();
+		$supported_saved    = get_option( 'fusion_supported_plugins_active', [] );
+		$supported_detected = [];
 		foreach ( $classes_to_check as $class ) {
 			if ( class_exists( $class ) ) {
 				$supported_detected[] = $class;
@@ -235,5 +275,32 @@ class Fusion {
 			$classes .= ' fusion-colorpicker-legacy ';
 		}
 		return $classes;
+	}
+
+	/**
+	 * Adds analytics code.
+	 *
+	 * @access public
+	 * @since 1.9.2
+	 * @return void
+	 */
+	public function add_analytics_code() {
+		/**
+		 * The setting below is not sanitized. In order to be able to take advantage of this,
+		 * a user would have to gain access to the database or the filesystem to add a new filter,
+		 * in which case this is the least on your worries.
+		 */
+		echo apply_filters( 'fusion_google_analytics', $this->get_option( 'google_analytics' ) ); // phpcs:ignore WordPress.Security.EscapeOutput
+	}
+
+	/**
+	 * Add Multilingual Data.
+	 *
+	 * @access public
+	 * @since 2.0
+	 * @return void
+	 */
+	public function multilingual_data() {
+		$this->multilingual = new Fusion_Multilingual();
 	}
 }

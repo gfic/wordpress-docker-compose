@@ -46,13 +46,22 @@ class Fusion_White_Label_Branding_Admin {
 
 		// Register admin menu for form dashbaord.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ), 1 );
-		add_action( 'admin_menu', array( $this, 'admin_menu_label_change' ), 99 );
+		add_action( 'admin_menu', array( $this, 'admin_menu_label_change' ), 1001 );
 
 		// Save Branding Settings.
 		add_action( 'admin_post_save_fusion_branding_settings', array( $this, 'settings_save' ) );
 
 		// Login screen branding.
 		add_action( 'login_head', array( $this, 'login_screen_branding' ) );
+
+		// Handles settings export.
+		add_action( 'init', array( $this, 'export_settings' ) );
+
+		// Handles settings import.
+		add_action( 'init', array( $this, 'import_settings' ) );
+
+		// Handles settings reset.
+		add_action( 'init', array( $this, 'reset_settings' ) );
 
 		if ( $this->user_can_see_changes() ) {
 
@@ -85,7 +94,7 @@ class Fusion_White_Label_Branding_Admin {
 
 			if ( '' !== $welcome_panel_title || '' !== $welcome_panel_content ) {
 				remove_action( 'welcome_panel', 'wp_welcome_panel' );
-				add_action( 'welcome_panel', array( $this, 'update_welcome_panel' ) );
+				add_action( 'all_admin_notices', array( $this, 'update_welcome_panel' ), 999 );
 			}
 
 			// Change admin page title.
@@ -166,7 +175,7 @@ class Fusion_White_Label_Branding_Admin {
 		// Add capability to each user roles selected by administrator.
 		foreach ( $all_user_roles as $role => $info ) {
 			$user_role = get_role( $role );
-			if ( in_array( $role, $user_roles ) ) {
+			if ( in_array( $role, $user_roles, true ) ) {
 				$user_role->add_cap( $capability );
 			} else {
 				$user_role->remove_cap( $capability );
@@ -186,15 +195,17 @@ class Fusion_White_Label_Branding_Admin {
 
 		$capability = 'access_white_label_branding';
 
-		$welcome_tab  = add_menu_page( esc_attr__( 'Fusion White Label Branding', 'fusion-white-label-branding' ), esc_attr__( 'Fusion Branding', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-admin', array( $this, 'welcome_tab' ), 'dashicons-fusion-white-label-logo', '3.555555' );
-		$support      = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'Support', 'fusion-white-label-branding' ), esc_attr__( 'Support', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-support', array( $this, 'support_tab' ) );
-		$faq          = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'FAQ', 'fusion-white-label-branding' ), esc_attr__( 'FAQ', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-faq', array( $this, 'faq_tab' ) );
-		$settings     = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'Branding Settings', 'fusion-white-label-branding' ), esc_attr__( 'Settings', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-settings', array( $this, 'branding_settings_tab' ) );
+		$welcome_tab   = add_menu_page( esc_attr__( 'Fusion White Label Branding', 'fusion-white-label-branding' ), esc_attr__( 'Fusion Branding', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-admin', array( $this, 'welcome_tab' ), 'dashicons-fusion-white-label-logo', '3.555555' );
+		$support       = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'Support', 'fusion-white-label-branding' ), esc_attr__( 'Support', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-support', array( $this, 'support_tab' ) );
+		$faq           = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'FAQ', 'fusion-white-label-branding' ), esc_attr__( 'FAQ', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-faq', array( $this, 'faq_tab' ) );
+		$settings      = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'Branding Settings', 'fusion-white-label-branding' ), esc_attr__( 'Settings', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-settings', array( $this, 'branding_settings_tab' ) );
+		$import_export = add_submenu_page( 'fusion-white-label-branding-admin', esc_attr__( 'Import / Export', 'fusion-white-label-branding' ), esc_attr__( 'Import / Export', 'fusion-white-label-branding' ), $capability, 'fusion-white-label-branding-import-export', array( $this, 'settings_import_export_tab' ) );
 
 		add_action( 'admin_print_scripts-' . $welcome_tab, array( $this, 'admin_styles' ) );
 		add_action( 'admin_print_scripts-' . $support, array( $this, 'admin_styles' ) );
 		add_action( 'admin_print_scripts-' . $faq, array( $this, 'admin_scripts_and_styles' ) );
 		add_action( 'admin_print_scripts-' . $settings, array( $this, 'admin_scripts_and_styles' ) );
+		add_action( 'admin_print_scripts-' . $import_export, array( $this, 'admin_scripts_and_styles' ) );
 	}
 
 	/**
@@ -210,7 +221,7 @@ class Fusion_White_Label_Branding_Admin {
 		// Change Fusion Branding first menu item label to welcome.
 		if ( current_user_can( 'edit_theme_options' ) ) {
 			// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
-			$submenu['fusion-white-label-branding-admin'][0][0] = __( 'Welcome', 'fusion-white-label-branding' );
+			$submenu['fusion-white-label-branding-admin'][0][0] = esc_html__( 'Welcome', 'fusion-white-label-branding' );
 		}
 
 		if ( $this->user_can_see_changes() ) {
@@ -281,20 +292,17 @@ class Fusion_White_Label_Branding_Admin {
 			}
 
 			// Change avada post type menu label.
-			if ( isset( $fusion_slider_options ) && isset( $fusion_slider_options['admin_menu_label'] ) ) {
-				$slider_label = $fusion_slider_options['admin_menu_label'];
-				if ( '' !== $slider_label ) {
-					// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
-					$menu['3333'][0] = $slider_label;
-				}
+			if ( isset( $fusion_slider_options ) && isset( $fusion_slider_options['admin_menu_label'] ) && $fusion_slider_options['admin_menu_label'] && isset( $menu['2.333333'][0] ) ) {
+				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
+				$menu['2.333333'][0] = $fusion_slider_options['admin_menu_label'];
 			}
 
 			// Remove selected sub-menus under Fusion Slider admin menu.
 			if ( ! empty( $fusion_slider_menus ) ) {
 
 				// If all sub-menus are selected, remove the parent menu as well to avoid confusion.
-				if ( 3 == count( $fusion_slider_menus ) ) {
-					unset( $menu['3333'] );
+				if ( 3 === count( $fusion_slider_menus ) ) {
+					unset( $menu['2.333333'] );
 				} else {
 					foreach ( $fusion_slider_menus as $menu_slug ) {
 						switch ( $menu_slug ) {
@@ -316,21 +324,45 @@ class Fusion_White_Label_Branding_Admin {
 			}
 
 			// If set, change Avada admin menu label.
-			if ( isset( $avada_options['admin_menu_label'] ) && '' !== $avada_options['admin_menu_label'] ) {
+			if ( isset( $menu['2.111111'] ) && isset( $avada_options['admin_menu_label'] ) && '' !== $avada_options['admin_menu_label'] ) {
 				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
 				$menu['2.111111'][0] = $avada_options['admin_menu_label'];
 			}
 
+			// Change Avada admin menu icon class name if set in settings.
+			if ( isset( $menu['2.111111'] ) && isset( $avada_options['admin_menu_dashicon'] ) && '' !== $avada_options['admin_menu_dashicon'] ) {
+				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
+				$menu['2.111111'][6] = $avada_options['admin_menu_dashicon'];
+			}
+
+			// Change Fusion White Label Branding admin menu icon class name if set in settings.
+			if ( isset( $menu['3.555555'] ) && isset( $avada_options['fusion_white_label_branding_menu_dashicon'] ) && '' !== $avada_options['fusion_white_label_branding_menu_dashicon'] ) {
+				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
+				$menu['3.555555'][6] = $avada_options['fusion_white_label_branding_menu_dashicon'];
+			}
+
 			// Change Theme Options menu label.
-			if ( ( isset( $avada_options['theme_options_menu_label'] ) && '' !== $avada_options['theme_options_menu_label'] ) ) {
+			if ( isset( $menu['avada'] ) && isset( $avada_options['theme_options_menu_label'] ) && '' !== $avada_options['theme_options_menu_label'] ) {
 				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
 				$submenu['avada'][7][0] = $avada_options['theme_options_menu_label'];
 			}
 
 			// If set, change Fusion Builder admin menu label.
-			if ( isset( $fusion_builder_options['admin_menu_label'] ) && '' !== $fusion_builder_options['admin_menu_label'] ) {
+			if ( isset( $menu['2.222222'] ) && isset( $fusion_builder_options['admin_menu_label'] ) && '' !== $fusion_builder_options['admin_menu_label'] ) {
 				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
 				$menu['2.222222'][0] = $fusion_builder_options['admin_menu_label'];
+			}
+
+			// Change Fusion Builder admin menu icon class name if set in settings.
+			if ( isset( $menu['2.222222'] ) && isset( $fusion_builder_options['admin_menu_dashicon'] ) && '' !== $fusion_builder_options['admin_menu_dashicon'] ) {
+				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
+				$menu['2.222222'][6] = $fusion_builder_options['admin_menu_dashicon'];
+			}
+
+			// Change Fusion Slider admin menu icon class name if set in settings.
+			if ( isset( $fusion_slider_options['admin_menu_dashicon'] ) && '' !== $fusion_slider_options['admin_menu_dashicon'] ) {
+				// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
+				$menu['2.333333'][6] = $fusion_slider_options['admin_menu_dashicon'];
 			}
 		}
 	}
@@ -343,14 +375,16 @@ class Fusion_White_Label_Branding_Admin {
 	 * @return void
 	 */
 	public function admin_menu_remove_sub_menus() {
+		global $menu;
 
 		// WP Admin Options.
 		$wp_admin_options = isset( $this->settings['fusion_branding']['wp_admin'] ) ? $this->settings['fusion_branding']['wp_admin'] : array();
 		$wp_admin_menus   = isset( $wp_admin_options['remove_admin_menu'] ) ? $wp_admin_options['remove_admin_menu'] : array();
 
 		// Avada Options.
-		$avada_options = isset( $this->settings['fusion_branding']['avada'] ) ? $this->settings['fusion_branding']['avada'] : array();
-		$avada_menus   = isset( $avada_options['remove_admin_menu'] ) ? $avada_options['remove_admin_menu'] : array();
+		$avada_options         = isset( $this->settings['fusion_branding']['avada'] ) ? $this->settings['fusion_branding']['avada'] : array();
+		$avada_menus           = isset( $avada_options['remove_admin_menu'] ) ? $avada_options['remove_admin_menu'] : array();
+		$avada_post_type_menus = isset( $avada_options['remove_post_type_menu'] ) ? $avada_options['remove_post_type_menu'] : array();
 
 		// Fusion Builder Options.
 		$fusion_builder_options = isset( $this->settings['fusion_branding']['fusion_builder'] ) ? $this->settings['fusion_branding']['fusion_builder'] : array();
@@ -365,16 +399,37 @@ class Fusion_White_Label_Branding_Admin {
 
 		// Remove selected sub-menus under Avada admin menu.
 		if ( ! empty( $avada_menus ) ) {
-			foreach ( $avada_menus as $menu_slug ) {
-				$menu_slug = ( 'avada' == $menu_slug ) ? $menu_slug : 'avada-' . $menu_slug;
-				remove_submenu_page( 'avada', $menu_slug );
+			if ( 9 === count( $avada_menus ) ) {
+				unset( $menu['2.111111'] );
+			} else {
+				foreach ( $avada_menus as $menu_slug ) {
+					$parent_slug = 'avada';
+					if ( 'theme_options' === $menu_slug ) {
+						$menu_slug = 'themes.php?page=avada_options';
+					} elseif ( 'avada' !== $menu_slug ) {
+						$menu_slug = 'avada-' . $menu_slug;
+					}
+
+					remove_submenu_page( $parent_slug, $menu_slug );
+				}
+			}
+		}
+
+		// Remove admin menus for selected post types.
+		if ( ! empty( $avada_post_type_menus ) ) {
+			foreach ( $avada_post_type_menus as $key => $menu_slug ) {
+				remove_menu_page( 'edit.php?post_type=' . $menu_slug );
 			}
 		}
 
 		// Remove selected sub-menus under Fusion Builder admin menu.
 		if ( ! empty( $fusion_builder_menus ) ) {
-			foreach ( $fusion_builder_menus as $menu_slug ) {
-				remove_submenu_page( 'fusion-builder-options', 'fusion-builder-' . $menu_slug );
+			if ( 6 === count( $fusion_builder_menus ) ) {
+				unset( $menu['2.222222'] );
+			} else {
+				foreach ( $fusion_builder_menus as $menu_slug ) {
+					remove_submenu_page( 'fusion-builder-options', 'fusion-builder-' . $menu_slug );
+				}
 			}
 		}
 	}
@@ -392,12 +447,16 @@ class Fusion_White_Label_Branding_Admin {
 		$wp_admin_options = isset( $this->settings['fusion_branding']['wp_admin'] ) ? $this->settings['fusion_branding']['wp_admin'] : array();
 		$wp_admin_menus   = isset( $wp_admin_options['remove_admin_menu'] ) ? $wp_admin_options['remove_admin_menu'] : array();
 
+		// Avada Options.
+		$avada_options         = isset( $this->settings['fusion_branding']['avada'] ) ? $this->settings['fusion_branding']['avada'] : array();
+		$avada_post_type_menus = isset( $avada_options['remove_post_type_menu'] ) ? $avada_options['remove_post_type_menu'] : array();
+
 		// Fusion Slider Options.
 		$fusion_slider_options = isset( $this->settings['fusion_branding']['fusion_slider'] ) ? $this->settings['fusion_branding']['fusion_slider'] : array();
 		$fusion_slider_menus   = isset( $fusion_slider_options['remove_admin_menu'] ) ? $fusion_slider_options['remove_admin_menu'] : array();
 
 		// Remove Fusion Slide menu from admin bar if selected.
-		if ( is_array( $fusion_slider_menus ) && in_array( 'slider', $fusion_slider_menus ) ) {
+		if ( is_array( $fusion_slider_menus ) && in_array( 'slider', $fusion_slider_menus, true ) ) {
 			$wp_admin_bar->remove_node( 'new-slide' );
 		}
 
@@ -430,6 +489,13 @@ class Fusion_White_Label_Branding_Admin {
 				}
 			}
 		}
+
+		// Remove admin bar menus for selected post types.
+		if ( ! empty( $avada_post_type_menus ) ) {
+			foreach ( $avada_post_type_menus as $key => $menu_slug ) {
+				$wp_admin_bar->remove_node( 'new-' . $menu_slug );
+			}
+		}
 	}
 
 	/**
@@ -440,14 +506,40 @@ class Fusion_White_Label_Branding_Admin {
 	 * @return void
 	 */
 	public function remove_wp_toolbar_menu() {
-		global $wp_admin_bar;
+		global $wp_admin_bar, $avada_patcher;
 
 		// Avada Options.
 		$avada_options         = isset( $this->settings['fusion_branding']['avada'] ) ? $this->settings['fusion_branding']['avada'] : array();
 		$remove_admin_bar_menu = isset( $avada_options['remove_admin_bar_menu'] ) ? $avada_options['remove_admin_bar_menu'] : false;
+		$admin_menu_dashicon   = isset( $avada_options['admin_menu_dashicon'] ) && '' !== $avada_options['admin_menu_dashicon'] ? 'dashicons-before ' . $avada_options['admin_menu_dashicon'] : '';
+		$admin_menu_label      = isset( $avada_options['admin_menu_label'] ) && '' !== $avada_options['admin_menu_label'] ? $avada_options['admin_menu_label'] : __( 'Avada', 'Avada' );
 
-		if ( $remove_admin_bar_menu ) {
+		if ( $remove_admin_bar_menu || '' !== $admin_menu_dashicon ) {
 			$wp_admin_bar->remove_node( 'avada' );
+		}
+
+		if ( ! is_admin() && '' !== $admin_menu_dashicon ) {
+			$patches              = $avada_patcher->get_patcher_checker()->get_cache();
+			$avada_updates_styles = 'display:inline-block;background-color:#d54e21;color:#fff;font-size:9px;line-height:17px;font-weight:600;border-radius:10px;padding:0 6px;';
+
+			$avada_parent_menu_name  = $admin_menu_label;
+			$avada_parent_menu_title = '<span class="ab-icon ' . $admin_menu_dashicon . '"></span><span class="ab-label">' . esc_html( $avada_parent_menu_name ) . '</span>';
+			if ( isset( $patches['avada'] ) && 1 <= $patches['avada'] ) {
+				$patches_label           = '<span style="' . $avada_updates_styles . '">' . $patches['avada'] . '</span>';
+				$avada_parent_menu_title = '<span class="ab-icon"></span><span class="ab-label">' . esc_html( $avada_parent_menu_name ) . ' ' . $patches_label . '</span>';
+			}
+
+			$wp_admin_bar->add_node(
+				array(
+					'title'  => $avada_parent_menu_title,
+					'parent' => false,
+					'href'   => admin_url( 'admin.php?page=avada' ),
+					'meta'   => array(
+						'class' => 'avada-menu',
+					),
+					'id'     => 'avada',
+				)
+			);
 		}
 	}
 
@@ -462,7 +554,7 @@ class Fusion_White_Label_Branding_Admin {
 	public function update_builder_meta_box( $post_type ) {
 		if ( class_exists( 'FusionBuilder' ) ) {
 			$fusion_builder_options = isset( $this->settings['fusion_branding']['fusion_builder'] ) ? $this->settings['fusion_branding']['fusion_builder'] : array();
-			$screens = $this->allowed_post_types();
+			$screens                = $this->allowed_post_types();
 
 			if ( post_type_supports( $post_type, 'editor' ) && ( isset( $fusion_builder_options['admin_menu_label'] ) && '' !== $fusion_builder_options['admin_menu_label'] ) ) {
 				remove_meta_box( 'fusion_builder_layout', $screens, 'normal' );
@@ -506,6 +598,9 @@ class Fusion_White_Label_Branding_Admin {
 					case 'themefusion_news':
 						remove_meta_box( 'themefusion_news', 'dashboard', 'side' );
 						break;
+					case 'gutenberg_panel':
+						remove_action( 'try_gutenberg_panel', 'wp_try_gutenberg_panel' );
+						break;
 				}
 			}
 		}
@@ -519,22 +614,36 @@ class Fusion_White_Label_Branding_Admin {
 	 * @return void
 	 */
 	public function update_welcome_panel() {
-		$wp_admin_options      = isset( $this->settings['fusion_branding']['wp_admin'] ) ? $this->settings['fusion_branding']['wp_admin'] : array();
-		$welcome_panel_title   = isset( $wp_admin_options['welcome_panel_title'] ) && ! empty( $wp_admin_options['welcome_panel_title'] ) ? $wp_admin_options['welcome_panel_title'] : '';
-		$welcome_panel_content = isset( $wp_admin_options['welcome_panel_content'] ) && ! empty( $wp_admin_options['welcome_panel_content'] ) ? $wp_admin_options['welcome_panel_content'] : '';
+		$screen = get_current_screen();
+		if ( 'dashboard' === $screen->base ) {
+			$wp_admin_options      = isset( $this->settings['fusion_branding']['wp_admin'] ) ? $this->settings['fusion_branding']['wp_admin'] : array();
+			$welcome_panel_title   = isset( $wp_admin_options['welcome_panel_title'] ) && ! empty( $wp_admin_options['welcome_panel_title'] ) ? $wp_admin_options['welcome_panel_title'] : '';
+			$welcome_panel_content = isset( $wp_admin_options['welcome_panel_content'] ) && ! empty( $wp_admin_options['welcome_panel_content'] ) ? $wp_admin_options['welcome_panel_content'] : '';
 
-		// Display content for welcome panel.
-		echo '<div class="fusion-white-label-branding-welcome-panel-wrapper">';
+			echo '<div class="wrap">';
+			echo '<style type="text/css">.wrap h1:not(.dashboard-title) { display: none; }</style>';
+			echo '<h1 class="dashboard-title">' . esc_html__( 'Dashboard' ) . '</h1>';
 
-		// Display title for welcome panel.
-		if ( '' !== $welcome_panel_title ) {
-			echo '<h2 class="fusion-white-label-branding-welcome-panel-title">' . $welcome_panel_title . '</h2>'; // WPCS: XSS ok.
+			echo '<div id="welcome-panel" class="welcome-panel">';
+
+			// Display content for welcome panel.
+			echo '<div class="fusion-white-label-branding-welcome-panel-wrapper">';
+
+			// Display title for welcome panel.
+			if ( '' !== $welcome_panel_title ) {
+				echo '<h2 class="fusion-white-label-branding-welcome-panel-title">' . $welcome_panel_title . '</h2>'; // WPCS: XSS ok.
+			}
+
+			echo '<div class="fusion-white-label-branding-welcome-panel-content about-wrap">';
+			echo $welcome_panel_content; // WPCS: XSS ok.
+			echo '</div>';
+
+			echo '</div>';
+
+			echo '</div>';
+			echo '</div>';
+
 		}
-
-		echo '<div class="fusion-white-label-branding-welcome-panel-content about-wrap">';
-		echo $welcome_panel_content; // WPCS: XSS ok.
-		echo '</div>';
-		echo '</div>';
 	}
 
 	/**
@@ -559,7 +668,7 @@ class Fusion_White_Label_Branding_Admin {
 		if ( isset( $wp_admin_options['dashboard_menu_label'] ) && '' !== $wp_admin_options['dashboard_menu_label'] ) {
 			// @codingStandardsIgnoreLine WordPress.Variables.GlobalVariables.OverrideProhibited
 			$change_title = $title = $wp_admin_options['dashboard_menu_label'];
-			$admin_title  = str_replace( __( 'Dashboard' ), $change_title, $admin_title );
+			$admin_title  = str_replace( esc_html__( 'Dashboard' ), $change_title, $admin_title );
 		}
 
 		return $admin_title;
@@ -689,17 +798,17 @@ class Fusion_White_Label_Branding_Admin {
 			$settings['fusion_branding'][ $section ] = wp_unslash( $_POST['fusion_branding'][ $section ] );
 		}
 
-		if ( 'wp_admin' == $section ) {
+		if ( 'wp_admin' === $section ) {
 			$settings['fusion_branding'][ $section ]['welcome_panel_content'] = wp_kses( $settings['fusion_branding'][ $section ]['welcome_panel_content'], $allowedposttags );
-			$settings['fusion_branding'][ $section ]['admin_footer_text'] = wp_kses( $settings['fusion_branding'][ $section ]['admin_footer_text'], $allowedposttags );
+			$settings['fusion_branding'][ $section ]['admin_footer_text']     = wp_kses( $settings['fusion_branding'][ $section ]['admin_footer_text'], $allowedposttags );
 		}
 
-		if ( 'fusion_builder' == $section ) {
+		if ( 'fusion_builder' === $section ) {
 			$settings['fusion_branding'][ $section ]['welcome_screen_content']    = wp_kses( $settings['fusion_branding'][ $section ]['welcome_screen_content'], $allowedposttags );
 			$settings['fusion_branding'][ $section ]['welcome_screen_about_text'] = wp_kses( stripslashes( $settings['fusion_branding'][ $section ]['welcome_screen_about_text'] ), $allowedposttags );
 		}
 
-		if ( 'avada' == $section ) {
+		if ( 'avada' === $section ) {
 			$settings['fusion_branding'][ $section ]['welcome_screen_content']    = wp_kses( $settings['fusion_branding'][ $section ]['welcome_screen_content'], $allowedposttags );
 			$settings['fusion_branding'][ $section ]['welcome_screen_about_text'] = wp_kses( stripslashes( $settings['fusion_branding'][ $section ]['welcome_screen_about_text'] ), $allowedposttags );
 		}
@@ -721,143 +830,70 @@ class Fusion_White_Label_Branding_Admin {
 	 */
 	public function login_screen_branding() {
 		$login_screen_options = ( isset( $this->settings['fusion_branding'] ) && isset( $this->settings['fusion_branding']['login_screen'] ) ) ? $this->settings['fusion_branding']['login_screen'] : array();
-		if ( ! empty( $login_screen_options ) ) {
-		?>
-		<div class="fusion-branding-overlay"></div>
-		<style type="text/css">
-		<?php
-		if ( isset( $login_screen_options['login_background_color'] ) && '' !== $login_screen_options['login_background_color'] ) :
-			?>
-		.fusion-branding-overlay {
-			position: fixed;
-			top: 0;
-			left: 0;
-			bottom: 0;
-			width: 100%;
-			height: 100%;
-			background-color: <?php echo esc_attr( $login_screen_options['login_background_color'] ); ?>;
-		}
 
-		#login {
-			position: relative;
-		}
-		<?php
-		endif;
-		?>
-		body.login {
-			<?php
-			if ( isset( $login_screen_options['login_background_image'] ) && '' !== $login_screen_options['login_background_image'] ) :
-			?>
-				background-image: url( '<?php echo esc_attr( $login_screen_options['login_background_image'] ); ?>' );
-				background-repeat: no-repeat;
-				background-position: center center;
-				background-size: cover;
-			<?php
-			endif;
-			?>
-		}
-		<?php
-		if ( isset( $login_screen_options['login_logo_image'] ) && '' !== $login_screen_options['login_logo_image'] ) :
-		?>
-			body.login h1 a {
-				background-image: none, url( '<?php echo esc_attr( $login_screen_options['login_logo_image'] ); ?>' );
-				background-size: contain;
-				width: auto;
+		if ( ! empty( $login_screen_options ) ) {
+			echo '<div class="fusion-branding-overlay"></div>';
+			echo '<style type="text/css">';
+
+			if ( isset( $login_screen_options['login_background_color'] ) && '' !== $login_screen_options['login_background_color'] ) {
+				echo '.fusion-branding-overlay{position:fixed;top:0;left:0;bottom:0;width:100%;height:100%;background-color:' . esc_attr( $login_screen_options['login_background_color'] ) . ';}';
+				echo '#login {position: relative;}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		if ( isset( $login_screen_options['login_box_background_color'] ) && '' !== $login_screen_options['login_box_background_color'] ) :
-			?>
-			body.login form {
-				background-color: <?php echo esc_attr( $login_screen_options['login_box_background_color'] ); ?>;
-				box-shadow: 0 1px 3px <?php echo esc_attr( $login_screen_options['login_box_background_color'] ); ?>;
+
+			if ( isset( $login_screen_options['login_background_image'] ) && '' !== $login_screen_options['login_background_image'] ) {
+				echo 'body.login{background-image:url( "' . esc_attr( $login_screen_options['login_background_image'] ) . '");background-repeat:no-repeat;background-position:center center;background-size:cover;}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		if ( isset( $login_screen_options['login_box_text_color'] ) && '' !== $login_screen_options['login_box_text_color'] ) :
-			?>
-			body.login form label {
-				color: <?php echo esc_attr( $login_screen_options['login_box_text_color'] ); ?>;
+
+			if ( isset( $login_screen_options['login_logo_image'] ) && '' !== $login_screen_options['login_logo_image'] ) {
+				echo 'body.login h1 a{background-image: none, url( "' . esc_attr( $login_screen_options['login_logo_image'] ) . '");background-size:contain;width:auto;}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		if ( isset( $login_screen_options['login_box_link_color'] ) && '' !== $login_screen_options['login_box_link_color'] ) :
-			?>
-			body.login #backtoblog a,
-			body.login #nav a{
-				color: <?php echo esc_attr( $login_screen_options['login_box_link_color'] ); ?>;
+
+			if ( isset( $login_screen_options['login_box_background_color'] ) && '' !== $login_screen_options['login_box_background_color'] ) {
+				echo 'body.login form{background-color:' . esc_attr( $login_screen_options['login_box_background_color'] ) . ';box-shadow:0 1px 3px ' . esc_attr( $login_screen_options['login_box_background_color'] ) . ';}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		if ( isset( $login_screen_options['login_box_link_hover_color'] ) && '' !== $login_screen_options['login_box_link_hover_color'] ) :
-			?>
-			body.login #backtoblog a:hover,
-			body.login #nav a:hover {
-				color: <?php echo esc_attr( $login_screen_options['login_box_link_hover_color'] ); ?>;
+
+			if ( isset( $login_screen_options['login_box_text_color'] ) && '' !== $login_screen_options['login_box_text_color'] ) {
+				echo 'body.login form label{color:' . esc_attr( $login_screen_options['login_box_text_color'] ) . ';}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		$button_default = isset( $login_screen_options['login_button_background_color'] ) ? $login_screen_options['login_button_background_color'] : '';
-		if ( '' !== $button_default ) :
-		?>
-		#wp-submit {
-				background: <?php echo esc_attr( $button_default ); ?>;
-				border-color: <?php echo esc_attr( $button_default ); ?>;
-				box-shadow: 0 1px 0 <?php echo esc_attr( $button_default ); ?>;
-				text-decoration: none;
-				text-shadow: 0 -1px 1px <?php echo esc_attr( $button_default ); ?>,1px 0 1px <?php echo esc_attr( $button_default ); ?>,0 1px 1px <?php echo esc_attr( $button_default ); ?>,-1px 0 1px <?php echo esc_attr( $button_default ); ?>;
+
+			if ( isset( $login_screen_options['login_box_link_color'] ) && '' !== $login_screen_options['login_box_link_color'] ) {
+				echo 'body.login #login a{color:' . esc_attr( $login_screen_options['login_box_link_color'] ) . ';}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		$button_text = isset( $login_screen_options['login_button_accent_color'] ) ? $login_screen_options['login_button_accent_color'] : '';
-		if ( '' !== $button_text ) :
-		?>
-		#wp-submit {
-			color: <?php echo esc_attr( $button_text ); ?>;
-		}
-		<?php
-		endif;
-		?>
-		<?php
-		$button_hover = isset( $login_screen_options['login_button_background_color_hover'] ) ? $login_screen_options['login_button_background_color_hover'] : '';
-		if ( '' !== $button_hover ) :
-		?>
-			#wp-submit:hover {
-				background: <?php echo esc_attr( $button_hover ); ?>;
-				border-color: <?php echo esc_attr( $button_hover ); ?>;
+
+			if ( isset( $login_screen_options['login_box_link_hover_color'] ) && '' !== $login_screen_options['login_box_link_hover_color'] ) {
+				echo 'body.login #login a:hover{color:' . esc_attr( $login_screen_options['login_box_link_hover_color'] ) . ';}';
 			}
-		<?php
-		endif;
-		?>
-		<?php
-		$text_hover = isset( $login_screen_options['login_button_accent_color_hover'] ) ? $login_screen_options['login_button_accent_color_hover'] : '';
-		if ( '' !== $text_hover ) :
-		?>
-			#wp-submit:hover {
-				color: <?php echo esc_attr( $text_hover ); ?>;
+
+			$button_default = isset( $login_screen_options['login_button_background_color'] ) ? $login_screen_options['login_button_background_color'] : '';
+
+			if ( '' !== $button_default ) {
+				echo '#wp-submit{background:' . esc_attr( $button_default ) . ';border-color:' . esc_attr( $button_default ) . ';box-shadow:0 1px 0 ' . esc_attr( $button_default ) . ';text-decoration:none;text-shadow:0 -1px 1px ' . esc_attr( $button_default ) . ',1px 0 1px ' . esc_attr( $button_default ) . ',0 1px 1px ' . esc_attr( $button_default ) . ',-1px 0 1px ' . esc_attr( $button_default ) . ';}';
 			}
-		<?php
-		endif;
-		?>
-		<?php if ( isset( $login_screen_options['remove_lost_password'] ) && $login_screen_options['remove_lost_password'] ) : ?>
-			#nav a:last-child {
-				display: none;
+
+			$button_text = isset( $login_screen_options['login_button_accent_color'] ) ? $login_screen_options['login_button_accent_color'] : '';
+
+			if ( '' !== $button_text ) {
+				echo '#wp-submit{color:' . esc_attr( $button_text ) . ';}';
 			}
-		<?php endif; ?>
-		</style>
-		<?php
+
+			$button_hover = isset( $login_screen_options['login_button_background_color_hover'] ) ? $login_screen_options['login_button_background_color_hover'] : '';
+
+			if ( '' !== $button_hover ) {
+				echo '#wp-submit:hover{background:' . esc_attr( $button_hover ) . ';border-color:' . esc_attr( $button_hover ) . ';}';
+			}
+
+			$text_hover = isset( $login_screen_options['login_button_accent_color_hover'] ) ? $login_screen_options['login_button_accent_color_hover'] : '';
+
+			if ( '' !== $text_hover ) {
+				echo '#wp-submit:hover{color:' . esc_attr( $text_hover ) . ';}';
+			}
+
+			if ( isset( $login_screen_options['remove_lost_password'] ) && $login_screen_options['remove_lost_password'] ) {
+				echo '#nav a:last-child{display:none;}';
+			}
+
+			echo '</style>';
+
 		}
 	}
 
@@ -904,10 +940,22 @@ class Fusion_White_Label_Branding_Admin {
 
 		$post_types = isset( $avada_options['rename_admin_menu'] ) ? $avada_options['rename_admin_menu'] : array();
 
-		if ( class_exists( 'FusionCore_Plugin' ) && 'fusion-core' == $domain ) {
-			$portfolio_label = isset( $post_types['portfolio'] ) ? $post_types['portfolio'] : '';
-			if ( '' !== $portfolio_label ) {
-				$text = str_replace( 'Portfolio', $portfolio_label, trim( $text, '?' ) );
+		if ( class_exists( 'FusionCore_Plugin' ) ) {
+			if ( 'fusion-core' === $domain ) {
+				$portfolio_label = isset( $post_types['portfolio'] ) ? $post_types['portfolio'] : '';
+				if ( '' !== $portfolio_label ) {
+					$text = str_replace( 'Portfolio', $portfolio_label, trim( $text, '?' ) );
+				}
+
+				if ( isset( $fusion_slider_options['import_export_label'] ) && '' !== $fusion_slider_options['import_export_label'] ) {
+					$text = str_replace( 'Export / Import', $fusion_slider_options['import_export_label'], trim( $text, '?' ) );
+				}
+			}
+
+			// Change Fusion Slider name for Page Options.
+			if ( isset( $fusion_slider_options['admin_menu_label'] ) && '' !== $fusion_slider_options['admin_menu_label'] ) {
+				$slider_label = $fusion_slider_options['admin_menu_label'];
+				$text         = str_replace( 'Fusion Slider', $slider_label, trim( $text, '?' ) );
 			}
 
 			$slider_export_label = ( isset( $fusion_slider_options['import_export_label'] ) && '' !== $fusion_slider_options['import_export_label'] ) ? $fusion_slider_options['import_export_label'] : '';
@@ -923,7 +971,7 @@ class Fusion_White_Label_Branding_Admin {
 	 * Admin styles.
 	 *
 	 * @access public
-	 * @since 1.0.1
+	 * @since 1.1
 	 * @return void
 	 */
 	public function admin_menu_styling() {
@@ -977,6 +1025,8 @@ class Fusion_White_Label_Branding_Admin {
 
 		// Fusion Slider Options.
 		$fusion_slider_options = isset( $this->settings['fusion_branding']['fusion_slider'] ) ? $this->settings['fusion_branding']['fusion_slider'] : array();
+
+		$dashboard_widgets = isset( $wp_admin_options['remove_dashboard_widget'] ) && ! empty( $wp_admin_options['remove_dashboard_widget'] ) ? $wp_admin_options['remove_dashboard_widget'] : array();
 
 		$admin_tab_selector = array();
 
@@ -1078,6 +1128,17 @@ class Fusion_White_Label_Branding_Admin {
 			$style .= 'background: #fff url( ' . $fusion_builder_options['fusion_builder_logo_image'] . ' ) no-repeat center !important;';
 			$style .= 'background-size: 150px !important;';
 			$style .= '}';
+			$style .= '.fusiona-FB_logo_black:not(.fusion_builder_is_active):before, #fusion_builder_switch:before {';
+			$style .= 'content: "" !important;';
+			$style .= 'background: url( ' . $fusion_builder_options['fusion_builder_logo_image'] . ' ) no-repeat center !important;';
+			$style .= 'background-size: 22px !important;';
+			$style .= 'width: 22px;';
+			$style .= 'height: 22px;';
+			$style .= 'display: inline-block;';
+			$style .= '}';
+			$style .= '#fusion_builder_switch:before {';
+			$style .= 'height: 40px;';
+			$style .= '}';
 		endif;
 
 		// Update Fusion Builder version number box.
@@ -1123,6 +1184,20 @@ class Fusion_White_Label_Branding_Admin {
 			$style .= '}';
 		endif;
 
+		// Update Fusion Slider element icon.
+		if ( isset( $fusion_slider_options['fusion_slider_icon_image'] ) && '' !== $fusion_slider_options['fusion_slider_icon_image'] ) :
+			$style .= '.fusion-module-icon.fusiona-TFicon:before{';
+			$style .= 'background-image: url( ' . $fusion_slider_options['fusion_slider_icon_image'] . ' );';
+			$style .= 'content: "";
+				background-size: 14px 14px;
+				background-repeat: no-repeat;
+				background-position: center;
+				width: 14px;
+				height: 14px;
+				display: inline-block;';
+			$style .= '}';
+		endif;
+
 		// Update Fusion White Label Branding admin menu icon logo.
 		if ( isset( $avada_options['fusion_white_label_branding_icon_image'] ) && '' !== $avada_options['fusion_white_label_branding_icon_image'] ) :
 			$style .= '#toplevel_page_fusion-white-label-branding-admin .dashicons-fusion-white-label-logo:before {';
@@ -1146,6 +1221,12 @@ class Fusion_White_Label_Branding_Admin {
 		  margin: 0 20px;
 		}';
 
+		if ( in_array( 'gutenberg_panel', $dashboard_widgets, true ) ) {
+			$style .= '#try-gutenberg-panel {
+			  display: none !important;
+			}';
+		}
+
 		if ( '' !== $admin_custom_css ) {
 			$style .= $admin_custom_css;
 		}
@@ -1168,7 +1249,7 @@ class Fusion_White_Label_Branding_Admin {
 		$avada_menus   = isset( $avada_options['remove_admin_menu'] ) ? $avada_options['remove_admin_menu'] : array();
 
 		if ( isset( $avada_options['avada_icon_image'] ) && '' !== $avada_options['avada_icon_image'] ) :
-			$style = '<style type="text/css" id="fusion-branding-style">';
+			$style  = '<style type="text/css" id="fusion-branding-style">';
 			$style .= '#wpadminbar .avada-menu>.ab-item .ab-icon:before {';
 			$style .= 'background: url( ' . $avada_options['avada_icon_image'] . ' ) no-repeat center !important;';
 			$style .= 'background-size: auto !important;';
@@ -1205,7 +1286,7 @@ class Fusion_White_Label_Branding_Admin {
 		// Add media uploader scripts and styles.
 		wp_enqueue_media();
 
-		wp_enqueue_style( 'fusion_branding_admin_css', FUSION_WHITE_LABEL_BRANDING_PLUGIN_URL . 'assets/css/fusion-white-label-branding-admin.min.css', FUSION_WHITE_LABEL_BRANDING_VERSION );
+		wp_enqueue_style( 'fusion_branding_admin_css', FUSION_WHITE_LABEL_BRANDING_PLUGIN_URL . 'assets/css/fusion-white-label-branding-admin.min.css', array(), FUSION_WHITE_LABEL_BRANDING_VERSION );
 		wp_enqueue_script( 'fusion_branding_admin_js', FUSION_WHITE_LABEL_BRANDING_PLUGIN_URL . 'assets/js/fusion-white-label-branding-admin.min.js', array( 'jquery', 'wp-color-picker-alpha' ), FUSION_WHITE_LABEL_BRANDING_VERSION, true );
 	}
 
@@ -1217,7 +1298,7 @@ class Fusion_White_Label_Branding_Admin {
 	 * @return void
 	 */
 	public function admin_styles() {
-		wp_enqueue_style( 'fusion_branding_admin_css', FUSION_WHITE_LABEL_BRANDING_PLUGIN_URL . 'assets/css/fusion-white-label-branding-admin.min.css' );
+		wp_enqueue_style( 'fusion_branding_admin_css', FUSION_WHITE_LABEL_BRANDING_PLUGIN_URL . 'assets/css/fusion-white-label-branding-admin.min.css', array(), FUSION_WHITE_LABEL_BRANDING_VERSION );
 	}
 
 	/**
@@ -1265,6 +1346,17 @@ class Fusion_White_Label_Branding_Admin {
 	}
 
 	/**
+	 * Handles settings import / export.
+	 *
+	 * @access public
+	 * @since 1.1
+	 * @return void
+	 */
+	public function settings_import_export_tab() {
+		require_once wp_normalize_path( dirname( __FILE__ ) . '/admin-screens/import-export.php' );
+	}
+
+	/**
 	 * Add the title.
 	 *
 	 * @static
@@ -1276,11 +1368,10 @@ class Fusion_White_Label_Branding_Admin {
 	protected static function admin_tab( $title, $page ) {
 
 		if ( isset( $_GET['page'] ) ) {
-			// @codingStandardsIgnoreLine WordPress.VIP.ValidatedSanitizedInput.InputNotSanitized
-			$active_page = wp_unslash( $_GET['page'] );
+			$active_page = sanitize_text_field( wp_unslash( $_GET['page'] ) ); // WPCS: CSRF ok.
 		}
 
-		if ( $active_page == $page ) {
+		if ( $active_page === $page ) {
 			$link       = 'javascript:void(0);';
 			$active_tab = ' nav-tab-active';
 		} else {
@@ -1339,6 +1430,7 @@ class Fusion_White_Label_Branding_Admin {
 			self::admin_tab( esc_attr__( 'FAQ', 'fusion-white-label-branding' ), 'fusion-white-label-branding-faq' );
 			self::admin_tab( esc_attr__( 'Support', 'fusion-white-label-branding' ), 'fusion-white-label-branding-support' );
 			self::admin_tab( esc_attr__( 'Settings', 'fusion-white-label-branding' ), 'fusion-white-label-branding-settings' );
+			self::admin_tab( esc_attr__( 'Import / Export', 'fusion-white-label-branding' ), 'fusion-white-label-branding-import-export' );
 			?>
 		</h2>
 		<?php
@@ -1354,7 +1446,7 @@ class Fusion_White_Label_Branding_Admin {
 	 */
 	public static function branding_links() {
 		$sections = array(
-			'wp_admin'       => __( 'WordPress Admin', 'fusion-white-label-branding' ),
+			'wp_admin' => esc_html__( 'WordPress Admin', 'fusion-white-label-branding' ),
 		);
 
 		// Add Avada if installed and activated.
@@ -1373,17 +1465,17 @@ class Fusion_White_Label_Branding_Admin {
 		}
 
 		// Put wp login section at end.
-		$sections['login_screen'] = __( 'WordPress Login Screen', 'fusion-white-label-branding' );
+		$sections['login_screen'] = esc_html__( 'WordPress Login Screen', 'fusion-white-label-branding' );
 
 		// @codingStandardsIgnoreLine WordPress.VIP.ValidatedSanitizedInput.InputNotSanitized
 		$current_section = ( isset( $_GET['section'] ) ) ? wp_unslash( $_GET['section'] ) : 'wp_admin';
-		$c = count( $sections );
+		$c               = count( $sections );
 		?>
 		<ul class="subsubsub">
 			<?php
 			$i = 1;
 			foreach ( $sections as $section => $title ) {
-				$active_section = ( $section == $current_section ) ? 'current' : '';
+				$active_section = ( $section === $current_section ) ? 'current' : '';
 				$sep            = ( $i !== $c ) ? '|' : '';
 				$link           = ( 'current' === $active_section ) ? 'javascript:void(0);' : 'admin.php?page=fusion-white-label-branding-settings&section=' . $section;
 				?>
@@ -1437,18 +1529,21 @@ class Fusion_White_Label_Branding_Admin {
 			$slider_labels = $wp_taxonomies['slide-page']->labels;
 
 			if ( '' !== $sliders_menu_label ) {
-				$slider_labels->menu_name    = $sliders_menu_label;
+				$slider_labels->menu_name = $sliders_menu_label;
 			}
 
 			if ( '' !== $sliders_label ) {
-				$slider_labels->name         = $sliders_label;
-				$slider_labels->all_items    = $sliders_label;
+				$slider_labels->name      = $sliders_label;
+				$slider_labels->all_items = $sliders_label;
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slider_labels->view_item    = sprintf( __( 'View %s', 'fusion-white-label-branding' ), $sliders_label );
+				$slider_labels->view_item = sprintf( esc_html__( 'View %s', 'fusion-white-label-branding' ), $sliders_label );
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slider_labels->add_new_item = sprintf( __( 'Add New %s', 'fusion-white-label-branding' ), $sliders_label );
+				$slider_labels->add_new_item = sprintf( esc_html__( 'Add New %s', 'fusion-white-label-branding' ), $sliders_label );
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slider_labels->edit_item    = sprintf( __( 'Edit %s', 'fusion-white-label-branding' ), $sliders_label );
+				$slider_labels->edit_item = sprintf( esc_html__( 'Edit %s', 'fusion-white-label-branding' ), $sliders_label );
 			}
 
 			unset( $post_types['slide-page'] );
@@ -1462,17 +1557,20 @@ class Fusion_White_Label_Branding_Admin {
 			$slide_labels = $wp_post_types['slide']->labels;
 
 			if ( '' !== $slides_menu_label ) {
-				$slide_labels->all_items    = $slides_menu_label;
+				$slide_labels->all_items = $slides_menu_label;
 			}
 
 			if ( '' !== $slides_label ) {
-				$slide_labels->name         = $slides_label;
+				$slide_labels->name = $slides_label;
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slide_labels->view_item    = sprintf( __( 'View %s', 'fusion-white-label-branding' ), $slides_label );
+				$slide_labels->view_item = sprintf( esc_html__( 'View %s', 'fusion-white-label-branding' ), $slides_label );
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slide_labels->add_new_item = sprintf( __( 'Add New %s', 'fusion-white-label-branding' ), $slides_label );
+				$slide_labels->add_new_item = sprintf( esc_html__( 'Add New %s', 'fusion-white-label-branding' ), $slides_label );
+
 				/* translators: The taxonomy (slide-page) name. */
-				$slide_labels->edit_item    = sprintf( __( 'Edit %s', 'fusion-white-label-branding' ), $slides_label );
+				$slide_labels->edit_item = sprintf( esc_html__( 'Edit %s', 'fusion-white-label-branding' ), $slides_label );
 			}
 		}
 
@@ -1480,15 +1578,18 @@ class Fusion_White_Label_Branding_Admin {
 		$skills_label = isset( $post_types['skills'] ) ? $post_types['skills'] : '';
 
 		if ( isset( $wp_taxonomies['portfolio_skills'] ) && '' !== $skills_label ) {
-			$skill_labels               = $wp_taxonomies['portfolio_skills']->labels;
-			$skill_labels->menu_name    = $skills_label;
-			$skill_labels->name         = $skills_label;
+			$skill_labels            = $wp_taxonomies['portfolio_skills']->labels;
+			$skill_labels->menu_name = $skills_label;
+			$skill_labels->name      = $skills_label;
+
 			/* translators: The taxonomy (skills) name. */
-			$skill_labels->view_item    = sprintf( __( 'View %s', 'fusion-white-label-branding' ), $skills_label );
+			$skill_labels->view_item = sprintf( esc_html__( 'View %s', 'fusion-white-label-branding' ), $skills_label );
+
 			/* translators: The taxonomy (skills) name. */
-			$skill_labels->add_new_item = sprintf( __( 'Add New %s', 'fusion-white-label-branding' ), $skills_label );
+			$skill_labels->add_new_item = sprintf( esc_html__( 'Add New %s', 'fusion-white-label-branding' ), $skills_label );
+
 			/* translators: The taxonomy (skills) name. */
-			$skill_labels->edit_item    = sprintf( __( 'Edit %s', 'fusion-white-label-branding' ), $skills_label );
+			$skill_labels->edit_item = sprintf( esc_html__( 'Edit %s', 'fusion-white-label-branding' ), $skills_label );
 			unset( $post_types['skills'] );
 		}
 
@@ -1496,15 +1597,18 @@ class Fusion_White_Label_Branding_Admin {
 		$tags_label = isset( $post_types['tags'] ) ? $post_types['tags'] : '';
 
 		if ( isset( $wp_taxonomies['portfolio_tags'] ) && '' !== $tags_label ) {
-			$tag_labels               = $wp_taxonomies['portfolio_tags']->labels;
-			$tag_labels->menu_name    = $tags_label;
-			$tag_labels->name         = $tags_label;
+			$tag_labels            = $wp_taxonomies['portfolio_tags']->labels;
+			$tag_labels->menu_name = $tags_label;
+			$tag_labels->name      = $tags_label;
+
 			/* translators: The taxonomy name. */
-			$tag_labels->view_item    = sprintf( __( 'View %s', 'fusion-white-label-branding' ), $tags_label );
+			$tag_labels->view_item = sprintf( esc_html__( 'View %s', 'fusion-white-label-branding' ), $tags_label );
+
 			/* translators: The taxonomy name. */
-			$tag_labels->add_new_item = sprintf( __( 'Add New %s', 'fusion-white-label-branding' ), $tags_label );
+			$tag_labels->add_new_item = sprintf( esc_html__( 'Add New %s', 'fusion-white-label-branding' ), $tags_label );
+
 			/* translators: The taxonomy name. */
-			$tag_labels->edit_item    = sprintf( __( 'Edit %s', 'fusion-white-label-branding' ), $tags_label );
+			$tag_labels->edit_item = sprintf( esc_html__( 'Edit %s', 'fusion-white-label-branding' ), $tags_label );
 			unset( $post_types['tags'] );
 		}
 
@@ -1512,35 +1616,46 @@ class Fusion_White_Label_Branding_Admin {
 
 			if ( '' !== $label && isset( $wp_post_types[ 'avada_' . $post_type ] ) ) {
 				// Change post type labels for portfolio and faq.
-				$labels                     = $wp_post_types[ 'avada_' . $post_type ]->labels;
-				$labels->menu_name          = $label;
-				$labels->name               = $label;
-				$labels->singular_name      = $label;
+				$labels                = $wp_post_types[ 'avada_' . $post_type ]->labels;
+				$labels->menu_name     = $label;
+				$labels->name          = $label;
+				$labels->singular_name = $label;
+
 				/* translators: The post-type name. */
-				$labels->add_new            = sprintf( __( 'Add %s', 'fusion-white-label-branding' ), $label );
+				$labels->add_new = sprintf( esc_html__( 'Add %s', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->add_new_item       = sprintf( __( 'Add %s', 'fusion-white-label-branding' ), $label );
+				$labels->add_new_item = sprintf( esc_html__( 'Add %s', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->edit_item          = sprintf( __( 'Edit %s', 'fusion-white-label-branding' ), $label );
-				$labels->new_item           = $label;
+				$labels->edit_item = sprintf( esc_html__( 'Edit %s', 'fusion-white-label-branding' ), $label );
+				$labels->new_item  = $label;
+
 				/* translators: The post-type name. */
-				$labels->all_items          = sprintf( __( 'All %s', 'fusion-white-label-branding' ), $label );
+				$labels->all_items = sprintf( esc_html__( 'All %s', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->view_item          = sprintf( __( 'View %s', 'fusion-white-label-branding' ), $label );
+				$labels->view_item = sprintf( esc_html__( 'View %s', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->search_items       = sprintf( __( 'Search %s', 'fusion-white-label-branding' ), $label );
+				$labels->search_items = sprintf( esc_html__( 'Search %s', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->not_found          = sprintf( __( 'No %s found', 'fusion-white-label-branding' ), $label );
+				$labels->not_found = sprintf( esc_html__( 'No %s found', 'fusion-white-label-branding' ), $label );
+
 				/* translators: The post-type name. */
-				$labels->not_found_in_trash = sprintf( __( 'No %s found in Trash', 'fusion-white-label-branding' ), $label );
+				$labels->not_found_in_trash = sprintf( esc_html__( 'No %s found in Trash', 'fusion-white-label-branding' ), $label );
 
 				if ( isset( $wp_taxonomies[ $post_type . '_category' ] ) ) {
+
 					// Change taxonomy labels for portfolio and faq.
-					$taxonomy_labels            = $wp_taxonomies[ $post_type . '_category' ]->labels;
+					$taxonomy_labels = $wp_taxonomies[ $post_type . '_category' ]->labels;
+
 					/* translators: The post-type name. */
-					$taxonomy_labels->menu_name = sprintf( __( '%s Categories', 'fusion-white-label-branding' ), $label );
+					$taxonomy_labels->menu_name = sprintf( esc_html__( '%s Categories', 'fusion-white-label-branding' ), $label );
+
 					/* translators: The post-type name. */
-					$taxonomy_labels->name      = sprintf( __( '%s Categories', 'fusion-white-label-branding' ), $label );
+					$taxonomy_labels->name = sprintf( esc_html__( '%s Categories', 'fusion-white-label-branding' ), $label );
 				}
 			}
 		}
@@ -1644,13 +1759,13 @@ class Fusion_White_Label_Branding_Admin {
 	 * @return bool
 	 */
 	public function user_can_see_changes() {
-		// Wordpress admin settings.
+		// WordPress admin settings.
 		$wp_admin_options = isset( $this->settings['fusion_branding']['wp_admin'] ) ? $this->settings['fusion_branding']['wp_admin'] : array();
 		$apply_changes    = isset( $wp_admin_options['apply_changes_for_admin'] ) ? $wp_admin_options['apply_changes_for_admin'] : true;
 
 		$current_user = wp_get_current_user();
 
-		if ( in_array( 'administrator', $current_user->roles ) ) {
+		if ( in_array( 'administrator', $current_user->roles, true ) ) {
 			return $apply_changes;
 		} else {
 			return true;
@@ -1679,6 +1794,141 @@ class Fusion_White_Label_Branding_Admin {
 			}
 		}
 		return $args;
+	}
+
+	/**
+	 * Download the settings json.
+	 *
+	 * @access public
+	 * @since 1.1
+	 * @return void
+	 */
+	public function export_settings() {
+
+		if ( ! isset( $_GET['action'] ) || 'export_white_label_settings' !== $_GET['action'] ) { // WPCS: CSRF ok.
+			return;
+		}
+
+		// @codingStandardsIgnoreLine WordPress.VIP.ValidatedSanitizedInput.InputNotSanitized
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'] ) ) {
+			die();
+		}
+
+		$section_id = '';
+
+		if ( isset( $_GET['section_id'] ) ) {
+			$section_id = sanitize_key( wp_unslash( $_GET['section_id'] ) );
+		}
+
+		$settings         = get_option( 'fusion_branding_settings', array() );
+		$section_settings = ( 'all' !== $section_id ) ? $settings['fusion_branding'][ $section_id ] : $settings;
+
+		// Assing the settings to a variable to export.
+		$export                = array();
+		$export[ $section_id ] = $section_settings;
+
+		header( 'Content-Description: File Transfer' );
+		header( 'Content-type: application/txt' );
+		header( 'Content-Disposition: attachment; filename="fusion-white-label-branding-settings-' . $section_id . '-' . date( 'd-m-Y' ) . '.json"' );
+		header( 'Content-Transfer-Encoding: binary' );
+		header( 'Expires: 0' );
+		header( 'Cache-Control: must-revalidate' );
+		header( 'Pragma: public' );
+
+		echo wp_json_encode( $export );
+		die();
+	}
+
+	/**
+	 * Import the settings from provided json.
+	 *
+	 * @access public
+	 * @since 1.1
+	 * @return void
+	 */
+	public function import_settings() {
+
+		// @codingStandardsIgnoreLine
+		if ( ! isset( $_POST['action'] ) || 'import_white_label_settings' !== $_POST['action'] || ! isset( $_POST['json_data'] ) ) {
+			return;
+		}
+
+		// Check for nonce validation.
+		check_ajax_referer( 'branding_settings_import', 'security' );
+
+		$decoded_settings = json_decode( wp_unslash( $_POST['json_data'] ), true );
+		$section_id       = key( $decoded_settings );
+		$section_settings = $decoded_settings[ $section_id ];
+
+		switch ( $section_id ) {
+
+			case 'all':
+				$settings = $section_settings;
+				break;
+
+			case 'wp_admin':
+			case 'avada':
+			case 'fusion_builder':
+			case 'fusion_slider':
+			case 'login_screen':
+				$settings = get_option( 'fusion_branding_settings', array() );
+				$settings['fusion_branding'][ $section_id ] = $section_settings;
+				break;
+		}
+
+		$result = update_option( 'fusion_branding_settings', $settings );
+
+		echo esc_attr( $result );
+
+		die();
+	}
+
+	/**
+	 * Reset settings.
+	 *
+	 * @access public
+	 * @since 1.1
+	 * @return void
+	 */
+	public function reset_settings() {
+
+		if ( ! isset( $_GET['action'] ) || 'reset-branding-settings' !== $_GET['action'] ) { // WPCS: CSRF ok.
+			return;
+		}
+
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ) ) ) { // WPCS: sanitization ok.
+			die();
+		}
+
+		$section_id = '';
+
+		if ( isset( $_GET['section_id'] ) ) {
+			$section_id = sanitize_key( wp_unslash( $_GET['section_id'] ) );
+		}
+
+		$settings = get_option( 'fusion_branding_settings', array() );
+
+		switch ( $section_id ) {
+
+			case 'all':
+				$settings['fusion_branding'] = array();
+				break;
+
+			case 'wp_admin':
+			case 'avada':
+			case 'fusion_builder':
+			case 'login_screen':
+			case 'fusion_slider':
+				$settings['fusion_branding'][ $section_id ] = array();
+				break;
+		}
+
+		update_option( 'fusion_branding_settings', $settings );
+
+		// @codingStandardsIgnoreLine
+		wp_safe_redirect( esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) );
+
+		die();
 	}
 }
 new Fusion_White_Label_Branding_Admin();

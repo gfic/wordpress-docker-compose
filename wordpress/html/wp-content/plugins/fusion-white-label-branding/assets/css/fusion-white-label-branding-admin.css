@@ -307,6 +307,46 @@
 .fusion-white-label-branding-wrap .fusion-white-label-option .fusion-white-label-option-input.dashboard-widget-options > span {
   width: 50%;
 }
+.fusion-white-label-branding-wrap .fusion-white-label-option .fusion-white-label-option-input .import-export-button-container {
+  margin: 7px 0 5px;
+  padding-top: 10px;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-align: center;
+      align-items: center;
+}
+.fusion-white-label-branding-wrap .fusion-white-label-option .fusion-white-label-option-input .import-export-button-container .spinner {
+  float: none;
+  margin-top: 0;
+}
+.fusion-white-label-branding-wrap .fusion-white-label-option .fusion-white-label-option-input input[type="file"] {
+  width: 100%;
+  padding: 0;
+  border: 1px solid #c7c5c5;
+}
+.fusion-white-label-branding-wrap .fusion-white-label-option .fusion-white-label-option-input input[type="file"]::-webkit-file-upload-button {
+  display: inline-block;
+  line-height: 26px;
+  padding: 0 10px 1px;
+  border-radius: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  vertical-align: top;
+  height: 34px !important;
+  background: none repeat scroll 0 0 #fff;
+  border: none;
+  border-right: 1px solid #c7c5c5;
+  color: #333333;
+  font-size: 13px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+  margin-right: 15px;
+  padding-right: 15px;
+}
 .fusion-white-label-branding-wrap .fusion-white-label-option h2,
 .fusion-white-label-branding-wrap .fusion-white-label-option h3 {
   font-size: 17px;
@@ -320,7 +360,8 @@
 .fusion-white-label-branding-wrap .fusion-white-label-option .dashboard-panels {
   font-size: 36px;
 }
-.fusion-white-label-branding-wrap .fusion-branding-save-settings {
+.fusion-white-label-branding-wrap .fusion-branding-save-settings,
+.fusion-white-label-branding-wrap .fusion-branding-reset-settings {
   height: 28px !important;
   margin-top: 1px !important;
 }

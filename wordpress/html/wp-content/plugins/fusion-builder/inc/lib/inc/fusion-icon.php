@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * Icons handler.
  *
@@ -25,7 +20,7 @@ class Fusion_Icon {
 	 * @since 1.0
 	 * @var array
 	 */
-	private $data = array();
+	private $data = [];
 
 	/**
 	 * Iterator.
@@ -92,18 +87,18 @@ class Fusion_Icon {
 		$name = ucwords( $name );
 
 		// Show Directional Variants in Parenthesis.
-		$directions = array(
+		$directions        = [
 			'/up$/i',
 			'/down$/i',
 			'/left$/i',
 			'/right$/i',
-		);
-		$directions_format = array( '(Up)', '(Down)', '(Left)', '(Right)' );
-		$name = preg_replace( $directions, $directions_format, $name );
+		];
+		$directions_format = [ '(Up)', '(Down)', '(Left)', '(Right)' ];
+		$name              = preg_replace( $directions, $directions_format, $name );
 
 		// Use Word "Outlined" in Place of "O".
-		$outlined_variants = array( '/\so$/i', '/\so\s/i' );
-		$name = preg_replace( $outlined_variants, ' Outlined ', $name );
+		$outlined_variants = [ '/\so$/i', '/\so\s/i' ];
+		$name              = preg_replace( $outlined_variants, ' Outlined ', $name );
 
 		// Remove Trailing Characters.
 		$name = trim( $name );
@@ -119,7 +114,8 @@ if ( ! function_exists( 'fusion_get_icons_array' ) ) {
 	 * @return array
 	 */
 	function fusion_get_icons_array() {
+		$path = Fusion_Font_Awesome::is_fa_pro_enabled() ? '/assets/fonts/fontawesome/icons_pro.php' : '/assets/fonts/fontawesome/icons_free.php';
 
-		return include wp_normalize_path( FUSION_LIBRARY_PATH . '/assets/fonts/fontawesome/icons.php' );
+		return include FUSION_LIBRARY_PATH . $path;
 	}
 }

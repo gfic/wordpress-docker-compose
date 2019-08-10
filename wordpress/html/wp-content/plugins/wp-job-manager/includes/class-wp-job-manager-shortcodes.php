@@ -1,13 +1,17 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Shortcodes.
+ *
+ * @package wp-job-manager
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
  * Handles the shortcodes for WP Job Manager.
  *
- * @package wp-job-manager
  * @since 1.0.0
  */
 class WP_Job_Manager_Shortcodes {
@@ -26,7 +30,7 @@ class WP_Job_Manager_Shortcodes {
 	 * @var self
 	 * @since  1.26.0
 	 */
-	private static $_instance = null;
+	private static $instance = null;
 
 	/**
 	 * Allows for accessing single instance of class. Class should only be constructed once per call.
@@ -36,10 +40,10 @@ class WP_Job_Manager_Shortcodes {
 	 * @return self Main instance.
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self();
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
 		}
-		return self::$_instance;
+		return self::$instance;
 	}
 
 	/**
@@ -86,10 +90,14 @@ class WP_Job_Manager_Shortcodes {
 	 * @throws Exception On action handling error.
 	 */
 	public function job_dashboard_handler() {
-		if ( ! empty( $_REQUEST['action'] ) && ! empty( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'job_manager_my_job_actions' ) ) {
+		if (
+			! empty( $_REQUEST['action'] )
+			&& ! empty( $_REQUEST['_wpnonce'] )
+			&& wp_verify_nonce( wp_unslash( $_REQUEST['_wpnonce'] ), 'job_manager_my_job_actions' ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce should not be modified.
+		) {
 
-			$action = sanitize_title( $_REQUEST['action'] );
-			$job_id = absint( $_REQUEST['job_id'] );
+			$action = sanitize_title( wp_unslash( $_REQUEST['action'] ) );
+			$job_id = isset( $_REQUEST['job_id'] ) ? absint( $_REQUEST['job_id'] ) : 0;
 
 			try {
 				// Get Job.
@@ -144,7 +152,7 @@ class WP_Job_Manager_Shortcodes {
 						$new_job_id = job_manager_duplicate_listing( $job_id );
 
 						if ( $new_job_id ) {
-							wp_redirect( add_query_arg( array( 'job_id' => absint( $new_job_id ) ), job_manager_get_permalink( 'submit_job_form' ) ) );
+							wp_safe_redirect( add_query_arg( array( 'job_id' => absint( $new_job_id ) ), job_manager_get_permalink( 'submit_job_form' ) ) );
 							exit;
 						}
 
@@ -156,7 +164,7 @@ class WP_Job_Manager_Shortcodes {
 						}
 
 						// redirect to post page.
-						wp_redirect( add_query_arg( array( 'job_id' => absint( $job_id ) ), job_manager_get_permalink( 'submit_job_form' ) ) );
+						wp_safe_redirect( add_query_arg( array( 'job_id' => absint( $job_id ) ), job_manager_get_permalink( 'submit_job_form' ) ) );
 						exit;
 					default:
 						do_action( 'job_manager_job_dashboard_do_action_' . $action, $job_id );
@@ -202,7 +210,8 @@ class WP_Job_Manager_Shortcodes {
 		$new_atts       = shortcode_atts(
 			array(
 				'posts_per_page' => '25',
-			), $atts
+			),
+			$atts
 		);
 		$posts_per_page = $new_atts['posts_per_page'];
 
@@ -211,9 +220,9 @@ class WP_Job_Manager_Shortcodes {
 		ob_start();
 
 		// If doing an action, show conditional content if needed....
-		if ( ! empty( $_REQUEST['action'] ) ) {
-			$action = sanitize_title( $_REQUEST['action'] );
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Input is used safely.
+		$action = isset( $_REQUEST['action'] ) ? sanitize_title( wp_unslash( $_REQUEST['action'] ) ) : false;
+		if ( ! empty( $action ) ) {
 			// Show alternative content if a plugin wants to.
 			if ( has_action( 'job_manager_job_dashboard_content_' . $action ) ) {
 				do_action( 'job_manager_job_dashboard_content_' . $action, $atts );
@@ -269,7 +278,8 @@ class WP_Job_Manager_Shortcodes {
 	public function edit_job() {
 		global $job_manager;
 
-		echo $job_manager->forms->get_form( 'edit-job' ); // WPCS: XSS ok.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Output should be appropriately escaped in the form generator.
+		echo $job_manager->forms->get_form( 'edit-job' );
 	}
 
 	/**
@@ -309,7 +319,8 @@ class WP_Job_Manager_Shortcodes {
 					'selected_category'         => '',
 					'selected_job_types'        => implode( ',', array_values( get_job_listing_types( 'id=>slug' ) ) ),
 				)
-			), $atts
+			),
+			$atts
 		);
 
 		if ( ! get_option( 'job_manager_enable_categories' ) ) {
@@ -331,22 +342,27 @@ class WP_Job_Manager_Shortcodes {
 			$atts['filled'] = ( is_bool( $atts['filled'] ) && $atts['filled'] ) || in_array( $atts['filled'], array( 1, '1', 'true', 'yes' ), true );
 		}
 
+		// Get keywords, location, category and type from querystring if set.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Input is used safely.
+		if ( ! empty( $_GET['search_keywords'] ) ) {
+			$atts['keywords'] = sanitize_text_field( wp_unslash( $_GET['search_keywords'] ) );
+		}
+		if ( ! empty( $_GET['search_location'] ) ) {
+			$atts['location'] = sanitize_text_field( wp_unslash( $_GET['search_location'] ) );
+		}
+		if ( ! empty( $_GET['search_category'] ) ) {
+			$atts['selected_category'] = sanitize_text_field( wp_unslash( $_GET['search_category'] ) );
+		}
+		if ( ! empty( $_GET['search_job_type'] ) ) {
+			$atts['selected_job_types'] = sanitize_text_field( wp_unslash( $_GET['search_job_type'] ) );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
 		// Array handling.
 		$atts['categories']         = is_array( $atts['categories'] ) ? $atts['categories'] : array_filter( array_map( 'trim', explode( ',', $atts['categories'] ) ) );
 		$atts['job_types']          = is_array( $atts['job_types'] ) ? $atts['job_types'] : array_filter( array_map( 'trim', explode( ',', $atts['job_types'] ) ) );
 		$atts['post_status']        = is_array( $atts['post_status'] ) ? $atts['post_status'] : array_filter( array_map( 'trim', explode( ',', $atts['post_status'] ) ) );
 		$atts['selected_job_types'] = is_array( $atts['selected_job_types'] ) ? $atts['selected_job_types'] : array_filter( array_map( 'trim', explode( ',', $atts['selected_job_types'] ) ) );
-
-		// Get keywords and location from querystring if set.
-		if ( ! empty( $_GET['search_keywords'] ) ) {
-			$atts['keywords'] = sanitize_text_field( $_GET['search_keywords'] );
-		}
-		if ( ! empty( $_GET['search_location'] ) ) {
-			$atts['location'] = sanitize_text_field( $_GET['search_location'] );
-		}
-		if ( ! empty( $_GET['search_category'] ) ) {
-			$atts['selected_category'] = sanitize_text_field( $_GET['search_category'] );
-		}
 
 		$data_attributes = array(
 			'location'        => $atts['location'],
@@ -358,8 +374,8 @@ class WP_Job_Manager_Shortcodes {
 			'order'           => $atts['order'],
 			'categories'      => implode( ',', $atts['categories'] ),
 		);
-		if ( $atts['show_filters'] ) {
 
+		if ( $atts['show_filters'] ) {
 			get_job_manager_template(
 				'job-filters.php',
 				array(
@@ -417,7 +433,8 @@ class WP_Job_Manager_Shortcodes {
 				if ( $jobs->found_posts > $atts['per_page'] && $atts['show_more'] ) {
 					wp_enqueue_script( 'wp-job-manager-ajax-filters' );
 					if ( $atts['show_pagination'] ) {
-						echo get_job_listing_pagination( $jobs->max_num_pages ); // WPCS: XSS ok.
+						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template output.
+						echo get_job_listing_pagination( $jobs->max_num_pages );
 					} else {
 						echo '<a class="load_more_jobs" href="#"><strong>' . esc_html__( 'Load more listings', 'wp-job-manager' ) . '</strong></a>';
 					}
@@ -438,6 +455,9 @@ class WP_Job_Manager_Shortcodes {
 		if ( ! empty( $atts['post_status'] ) ) {
 			$data_attributes['post_status'] = implode( ',', $atts['post_status'] );
 		}
+
+		$data_attributes['post_id'] = isset( $GLOBALS['post'] ) ? $GLOBALS['post']->ID : 0;
+
 		foreach ( $data_attributes as $key => $value ) {
 			$data_attributes_string .= 'data-' . esc_attr( $key ) . '="' . esc_attr( $value ) . '" ';
 		}
@@ -500,11 +520,12 @@ class WP_Job_Manager_Shortcodes {
 		$atts = shortcode_atts(
 			array(
 				'id' => '',
-			), $atts
+			),
+			$atts
 		);
 
 		if ( ! $atts['id'] ) {
-			return;
+			return null;
 		}
 
 		ob_start();
@@ -544,7 +565,8 @@ class WP_Job_Manager_Shortcodes {
 				'align'    => 'left',
 				'featured' => null, // True to show only featured, false to hide featured, leave null to show both (when leaving out id).
 				'limit'    => 1,
-			), $atts
+			),
+			$atts
 		);
 
 		ob_start();
@@ -597,7 +619,8 @@ class WP_Job_Manager_Shortcodes {
 		$new_atts = shortcode_atts(
 			array(
 				'id' => '',
-			), $atts
+			),
+			$atts
 		);
 		$id       = $new_atts['id'];
 

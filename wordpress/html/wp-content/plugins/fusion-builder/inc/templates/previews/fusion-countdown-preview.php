@@ -1,3 +1,11 @@
+<?php
+/**
+ * Underscore.js template.
+ *
+ * @package fusion-builder
+ */
+
+?>
 <script type="text/template" id="fusion-builder-block-module-countdown-preview-template">
 
 	<div class="fusion_countdown_timer">
@@ -9,7 +17,7 @@
 		$target_time = new Date(),
 		$now_time = new Date();
 
-		if ( $countdown_end === '' ) {
+		if ( $countdown_end === '' || 'undefined' === typeof $countdown_end ) {
 			var
 			$secs = 0,
 			$mins = 0,
@@ -47,13 +55,18 @@
 		<# } else {
 
 			if ( params.show_weeks !== 'no' ) { #>
+				<?php /* translators: Number. */ ?>
 				<span><?php printf( esc_html__( '%s Weeks', 'fusion-builder' ), '{{ $weeks }}' ); ?></span>
 			<# } #>
 
-			 <span><?php printf( esc_html__( '%s Days', 'fusion-builder' ), '{{ $days }}' ); ?></span>
-			 <span><?php printf( esc_html__( '%s Hrs', 'fusion-builder' ), '{{ $hours }}' ); ?></span>
-			 <span><?php printf( esc_html__( '%s Min', 'fusion-builder' ), '{{ $mins }}' ); ?></span>
-			 <span><?php printf( esc_html__( '%s Sec', 'fusion-builder' ), '{{ $secs }}' ); ?></span>
+			<?php /* translators: Number. */ ?>
+			<span><?php printf( esc_html__( '%s Days', 'fusion-builder' ), '{{ $days }}' ); ?></span>
+			<?php /* translators: Number. */ ?>
+			<span><?php printf( esc_html__( '%s Hrs', 'fusion-builder' ), '{{ $hours }}' ); ?></span>
+			<?php /* translators: Number. */ ?>
+			<span><?php printf( esc_html__( '%s Min', 'fusion-builder' ), '{{ $mins }}' ); ?></span>
+			<?php /* translators: Number. */ ?>
+			<span><?php printf( esc_html__( '%s Sec', 'fusion-builder' ), '{{ $secs }}' ); ?></span>
 		<# } #>
 
 	</div>

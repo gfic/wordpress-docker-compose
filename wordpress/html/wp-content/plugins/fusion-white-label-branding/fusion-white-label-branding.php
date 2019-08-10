@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Fusion White Label Branding
- * Plugin URI: http://www.theme-fusion.com
+ * Plugin URI: https://theme-fusion.com
  * Description: White Label Branding plugin for ThemeFusion Products.
- * Version: 1.0.1
+ * Version: 1.1.3
  * Author: ThemeFusion
- * Author URI: http://www.theme-fusion.com
+ * Author URI: https://theme-fusion.com
  *
  * @package Fusion-White-Label-Branding
  */
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Plugin version.
 if ( ! defined( 'FUSION_WHITE_LABEL_BRANDING_VERSION' ) ) {
-	define( 'FUSION_WHITE_LABEL_BRANDING_VERSION', '1.0.1' );
+	define( 'FUSION_WHITE_LABEL_BRANDING_VERSION', '1.1.3' );
 }
 // Plugin Folder Path.
 if ( ! defined( 'FUSION_WHITE_LABEL_BRANDING_PLUGIN_DIR' ) ) {
@@ -97,10 +97,26 @@ if ( ! class_exists( 'Fusion_White_Label_Branding' ) ) {
 		}
 
 		/**
+		 * Loads the plugin language files.
+		 *
+		 * @access public
+		 * @since 1.1
+		 * @return void
+		 */
+		public function textdomain() {
+
+			// Set text domain.
+			$domain = 'fusion-white-label-branding';
+
+			// Load textdomain for plugin.
+			load_plugin_textdomain( $domain, false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
+		}
+
+		/**
 		 * Run on plugin activation. Process options migration etc.
 		 *
 		 * @access private
-		 * @since 2.0
+		 * @since 1.1
 		 * @return void
 		 */
 		public static function activation() {
@@ -135,21 +151,6 @@ if ( ! class_exists( 'Fusion_White_Label_Branding' ) ) {
 				update_option( 'fusion_branding_settings', $settings );
 			}
 		}
-
-		/**
-		 * Loads the plugin language files.
-		 *
-		 * @access public
-		 * @since 1.0.1
-		 * @return void
-		 */
-		public function textdomain() {
-			// Set text domain.
-			$domain = 'fusion-white-label-branding';
-
-			// Load textdomain for plugin.
-			load_plugin_textdomain( $domain, false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
-		}
 	}
 } // End if().
 
@@ -163,3 +164,42 @@ function fusion_white_label_branding_activate() {
 	Fusion_White_Label_Branding::get_instance();
 }
 add_action( 'after_setup_theme', 'fusion_white_label_branding_activate', 11 );
+
+/**
+ * Instantiate FusionBuilder class.
+ * We'll add the hook on 'after_setup_theme' with a priority 9999
+ * to be sure it runs AFTER the Avada/Fusion-Builder patchers.
+ */
+function fusion_white_label_branding_patcher() {
+
+	// Include Fusion-Library.
+	$class_files = array(
+		'Fusion_Helper'                => 'inc/patcher/class-fusion-helper.php',
+		'Fusion_Cache'                 => 'inc/patcher/class-fusion-cache.php',
+		'Fusion_Patcher'               => 'inc/patcher/class-fusion-patcher.php',
+		'Fusion_Patcher_Admin_Notices' => 'inc/patcher/class-fusion-patcher-admin-notices.php',
+		'Fusion_Patcher_Admin_Screen'  => 'inc/patcher/class-fusion-patcher-admin-screen.php',
+		'Fusion_Patcher_Apply_Patch'   => 'inc/patcher/class-fusion-patcher-apply-patch.php',
+		'Fusion_Patcher_Cache'         => 'inc/patcher/class-fusion-patcher-cache.php',
+		'Fusion_Patcher_Checker'       => 'inc/patcher/class-fusion-patcher-checker.php',
+		'Fusion_Patcher_Client'        => 'inc/patcher/class-fusion-patcher-client.php',
+		'Fusion_Patcher_Filesystem'    => 'inc/patcher/class-fusion-patcher-filesystem.php',
+	);
+	foreach ( $class_files as $classname => $file ) {
+		if ( ! class_exists( $classname ) ) {
+			require_once FUSION_WHITE_LABEL_BRANDING_PLUGIN_DIR . $file;
+		}
+	}
+	$fwlb_patcher = new Fusion_Patcher(
+		array(
+			'context'     => 'fusion-white-label-branding',
+			'version'     => FUSION_WHITE_LABEL_BRANDING_VERSION,
+			'name'        => 'Fusion White Label Branding',
+			'parent_slug' => 'fusion-white-label-branding-admin',
+			'page_title'  => esc_attr__( 'Fusion Patcher', 'fusion-builder' ),
+			'menu_title'  => esc_attr__( 'Fusion Patcher', 'fusion-builder' ),
+			'classname'   => 'Fusion_White_Label_Branding',
+		)
+	);
+}
+add_action( 'after_setup_theme', 'fusion_white_label_branding_patcher', 9999 );

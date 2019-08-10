@@ -1,29 +1,29 @@
-/* global TableShortcodeHandler, FusionPageBuilderApp */
+/* global FusionPageBuilderApp */
 jQuery( document ).ready( function() {
 
 	// Table handler
-	TableShortcodeHandler = jQuery( '#fusion_table_type, #fusion_table_columns' ); // jshint ignore:line
+	var TableShortcodeHandler = jQuery( '#fusion_table_type, #fusion_table_columns' ); // jshint ignore:line
 
-	TableShortcodeHandler.live( 'change', function( e ) { // jshint ignore:line
-		var types = new Array(
+	TableShortcodeHandler.live( 'change', function() {
+		var types = [
 				'',
 				'table-1',
 				'table-2'
-			),
-			type = jQuery( '#fusion_table_type' ).val(),
-			columns = jQuery( '#fusion_table_columns' ).val(),
-			exampleTable = '<div class="' + types[type] + '"><table width="100%"><thead><tr>',
+			],
+			type         = jQuery( '#fusion_table_type' ).val(),
+			columns      = jQuery( '#fusion_table_columns' ).val(),
+			exampleTable = '<div class="' + types[ type ] + '"><table width="100%"><thead><tr>',
 			i;
 
 		// Add table headers
-		for ( i = 0; i < columns; i++ ) {
-				exampleTable += '<th align="left">Column ' + i + '</th>';
+		for ( i = 1; i <= columns; i++ ) {
+			exampleTable += '<th align="left">Column ' + i + '</th>';
 		}
 		exampleTable += '</tr></thead><tr>';
 
 		// Add table columns
-		for ( i = 0; i < columns; i++ ) {
-				exampleTable += '<td align="left">Column ' + i + ' Value</td>';
+		for ( i = 1; i <= columns; i++ ) {
+			exampleTable += '<td align="left">Column ' + i + ' Value</td>';
 		}
 		exampleTable += '</tr></tbody></table></div>';
 

@@ -200,7 +200,7 @@ class MailChimp_WooCommerce
     private function set_locale()
     {
         $plugin_i18n = new MailChimp_WooCommerce_i18n();
-        $this->loader->add_action('plugins_loaded', $plugin_i18n, 'load_plugin_textdomain');
+        $this->loader->add_action('init', $plugin_i18n, 'load_plugin_textdomain');
     }
 
     /**
@@ -245,6 +245,14 @@ class MailChimp_WooCommerce
         $this->loader->add_action('plugins_loaded', $plugin_admin, 'update_db_check');
         $this->loader->add_action('admin_init', $plugin_admin, 'setup_survey_form');
         $this->loader->add_action('admin_footer', $plugin_admin, 'inject_sync_ajax_call');
+
+        // update MC store information when woocommerce general settings are saved
+        $this->loader->add_action('woocommerce_settings_save_general', $plugin_admin, 'mailchimp_update_woo_settings');
+        
+        // update MC store information if "WooCommerce Multi-Currency Extension" settings are saved
+        if ( class_exists( 'WOOMULTI_CURRENCY_F' ) ) {
+            $this->loader->add_action('villatheme_support_woo-multi-currency', $plugin_admin, 'mailchimp_update_woo_settings');
+        }
     }
 
 	/**
@@ -311,13 +319,10 @@ class MailChimp_WooCommerce
 			$this->loader->add_action( 'init', $service, 'handleCampaignTracking' );
 
 			// order hooks
-            $this->loader->add_action('woocommerce_thankyou', $service, 'onNewOrder', 10);
-			$this->loader->add_action('woocommerce_api_create_order', $service, 'onNewOrder', 10);
-            $this->loader->add_action('woocommerce_ppe_do_payaction', $service, 'onNewPayPalOrder', 10, 1);
-			$this->loader->add_action('woocommerce_order_status_changed', $service, 'handleOrderStatusChanged', 10);
+            $this->loader->add_action('woocommerce_order_status_changed', $service, 'handleOrderStatusChanged', 11, 3);
 
-			// partially refunded
-            $this->loader->add_action('woocommerce_order_partially_refunded', $service, 'onPartiallyRefunded', 10);
+			// refunds
+            $this->loader->add_action('woocommerce_order_partially_refunded', $service, 'onPartiallyRefunded', 20, 1);
 
 			// cart hooks
 			//$this->loader->add_action('woocommerce_cart_updated', $service, 'handleCartUpdated');

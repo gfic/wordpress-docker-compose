@@ -1,4 +1,4 @@
-/* global fusionAllElements, FusionPageBuilderViewManager */
+/* global fusionAllElements */
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -13,26 +13,18 @@ var FusionPageBuilder = FusionPageBuilder || {};
 		_.each( fusionAllElements, function( element ) {
 			var newElement;
 
-			if ( 'undefined' === typeof element.hide_from_builder && 'undefined' === typeof element.generator_only ) {
-
-				newElement = {
-					'title': element.name,
-					'label': element.shortcode
-				};
-
-				fusionElements.push( newElement );
-			}
-		} );
-
-		_.each( fusionAllElements, function( element ) {
-			var newElement;
-
 			if ( 'undefined' === typeof element.hide_from_builder ) {
 
 				newElement = {
-					'title': element.name,
-					'label': element.shortcode
+					title: element.name,
+					label: element.shortcode
 				};
+
+				if ( 'undefined' === typeof element.generator_only ) {
+					fusionElements.push( newElement );
+				} else {
+					newElement.generator_only = true;
+				}
 
 				fusionGeneratorElements.push( newElement );
 			}
@@ -43,7 +35,13 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			var titleA = a.title.toLowerCase(),
 				titleB = b.title.toLowerCase();
 
-			return ( ( titleA < titleB ) ? -1 : ( ( titleA > titleB ) ? 1 : 0 ) );
+			if ( titleA < titleB ) {
+				return -1;
+			}
+			if ( titleA > titleB ) {
+				return 1;
+			}
+			return 0;
 		} );
 
 		// Sort generator elements alphabetically
@@ -51,7 +49,13 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			var titleA = a.title.toLowerCase(),
 				titleB = b.title.toLowerCase();
 
-			return ( ( titleA < titleB ) ? -1 : ( ( titleA > titleB ) ? 1 : 0 ) );
+			if ( titleA < titleB ) {
+				return -1;
+			}
+			if ( titleA > titleB ) {
+				return 1;
+			}
+			return 0;
 		} );
 
 		FusionPageBuilder.ViewManager = Backbone.Model.extend( {
@@ -62,11 +66,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				views: {}
 			},
 
-			initialize: function() {
-			},
-
 			getView: function( cid ) {
-				return this.get( 'views' )[cid];
+				return this.get( 'views' )[ cid ];
 			},
 
 			getChildViews: function( parentID ) {
@@ -85,7 +86,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			generateCid: function() {
 				var elementCount = this.get( 'elementCount' ) + 1;
 
-				this.set( { 'elementCount': elementCount } );
+				this.set( { elementCount: elementCount } );
 
 				return elementCount;
 			},
@@ -94,7 +95,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				var views = this.get( 'views' );
 
 				views[ cid ] = view;
-				this.set( { 'views': views } );
+				this.set( { views: views } );
 			},
 
 			removeView: function( cid ) {
@@ -103,16 +104,16 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				_.each( views, function( value, key ) {
 					if ( key != cid ) { // jshint ignore:line
-						updatedViews[key] = value;
+						updatedViews[ key ] = value;
 					}
 				} );
 
-				this.set( { 'views': updatedViews } );
+				this.set( { views: updatedViews } );
 			},
 
 			removeViews: function() {
 				var updatedViews = {};
-				this.set( { 'views': updatedViews } );
+				this.set( { views: updatedViews } );
 			},
 
 			countElementsByType: function( elementType ) {
@@ -130,8 +131,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 		} );
 
-		FusionPageBuilderViewManager = new FusionPageBuilder.ViewManager(); // jshint ignore:line
+		window.FusionPageBuilderViewManager = new FusionPageBuilder.ViewManager(); // jshint ignore:line
 
 	} );
 
-} ( jQuery ) );
+}( jQuery ) );

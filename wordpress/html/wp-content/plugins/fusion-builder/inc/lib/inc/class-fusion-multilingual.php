@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * A helper class that depending on the active multilingual plugin
  * will get the available languages as well as the active language.
@@ -45,7 +40,7 @@ class Fusion_Multilingual {
 	 * @access  private
 	 * @var  array
 	 */
-	private static $available_languages = array();
+	private static $available_languages = [];
 
 	/**
 	 * The active language.
@@ -93,7 +88,7 @@ class Fusion_Multilingual {
 		// Set the $active_language property.
 		self::set_active_language();
 
-		add_filter( 'wpml_ls_html', array( $this, 'disable_wpml_footer_ls_html' ), 10, 3 );
+		add_filter( 'wpml_ls_html', [ $this, 'disable_wpml_footer_ls_html' ], 10, 3 );
 
 	}
 
@@ -148,7 +143,7 @@ class Fusion_Multilingual {
 			self::$active_language = $lang;
 		}
 		// If we have not defined a language, then autodetect.
-		if ( false == $lang || empty( $lang ) ) {
+		if ( false === $lang || empty( $lang ) ) {
 			// No need to proceed if both WPML & PLL are inactive.
 			if ( ! self::$is_pll && ! self::$is_wpml ) {
 				return 'en';
@@ -183,7 +178,7 @@ class Fusion_Multilingual {
 					}
 				}
 			}
-		}// End if().
+		}
 	}
 
 	/**
@@ -197,6 +192,20 @@ class Fusion_Multilingual {
 	}
 
 	/**
+	 * Gets the data for front-end.
+	 *
+	 * @since 6.0
+	 * @return array
+	 */
+	public static function get_language_switcher_data() {
+		if ( self::$is_pll ) {
+			return self::get_language_switcher_pll();
+		} elseif ( self::$is_wpml ) {
+			return self::get_language_switcher_wpml();
+		}
+	}
+
+	/**
 	 * Get the available languages from WPML.
 	 *
 	 * @return array
@@ -204,10 +213,10 @@ class Fusion_Multilingual {
 	private static function get_available_languages_wpml() {
 		// Do not continue processing if we're not using WPML.
 		if ( ! self::$is_wpml ) {
-			return array();
+			return [];
 		}
 		$wpml_languages = icl_get_languages( 'skip_missing=0' );
-		$languages      = array();
+		$languages      = [];
 		foreach ( $wpml_languages as $language_key => $args ) {
 			$languages[] = $args['code'];
 		}
@@ -265,19 +274,49 @@ class Fusion_Multilingual {
 	private static function get_available_languages_pll() {
 		// Do not continue processing if we're not using PLL.
 		if ( ! self::$is_pll ) {
-			return array();
+			return [];
 		}
 
 		global $polylang;
 		// Get the PLL languages object.
 		$pll_languages_obj = $polylang->model->get_languages_list();
 		// Parse the object and get a usable array.
-		$pll_languages = array();
+		$pll_languages = [];
 		foreach ( $pll_languages_obj as $pll_language_obj ) {
 			$pll_languages[] = $pll_language_obj->slug;
 		}
 
 		return $pll_languages;
+	}
+
+	/**
+	 * Get the PolyLang data for front-end.
+	 *
+	 * @since 6.0
+	 * @return array
+	 */
+	private static function get_language_switcher_pll() {
+		// Do not continue processing if we're not using PLL.
+		if ( ! self::$is_pll || ! function_exists( 'pll_the_languages' ) ) {
+			return [];
+		}
+
+		return pll_the_languages( [ 'raw' => 1 ] );
+	}
+
+	/**
+	 * Get the WPML data for front-end.
+	 *
+	 * @since 6.0
+	 * @return array
+	 */
+	private static function get_language_switcher_wpml() {
+		// Do not continue processing if we're not using WPML.
+		if ( ! self::$is_wpml ) {
+			return [];
+		}
+
+		return apply_filters( 'wpml_active_languages', null, 'skip_missing=0&orderby=id&order=desc' );
 	}
 
 	/**

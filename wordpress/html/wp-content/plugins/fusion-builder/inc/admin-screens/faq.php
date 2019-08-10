@@ -1,3 +1,11 @@
+<?php
+/**
+ * Admin Screen markup (FAQ page).
+ *
+ * @package fusion-builder
+ */
+
+?>
 <div class="wrap about-wrap fusion-builder-wrap">
 
 	<?php Fusion_Builder_Admin::header(); ?>
@@ -5,7 +13,8 @@
 	<?php if ( ! defined( 'ENVATO_HOSTED_SITE' ) ) : ?>
 		<div class="fusion-builder-important-notice">
 			<p class="about-description">
-				<?php printf( __( 'These are general frequently asked questions to help you get started. For more in-depth documentation, please visit our <a href="%s" target="_blank">online support center</a> to view documentation, knowledgebase and video tutorials.', 'fusion-builder' ), 'https://theme-fusion.com/support/' ); // WPCS: XSS ok. ?>
+				<?php /* translators: Link attributes. */ ?>
+				<?php printf( __( 'These are general frequently asked questions to help you get started. For more in-depth documentation, please visit our <a %s>online support center</a> to view documentation, knowledgebase and video tutorials.', 'fusion-builder' ), 'href="https://theme-fusion.com/support/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</p>
 		</div>
 
@@ -16,7 +25,8 @@
 			</div>
 			<div class="fusion-builder-admin-toggle-content">
 				<?php esc_html_e( 'Fusion Builder is a plugin that allows you to visually build pages through an intuitive drag and drop interface. It is a WYSIWYG editor ( what you see is what you get ), allowing you to visually see what your page will look like while creating it.', 'fusion-builder' ); ?><br/><br/>
-				<?php esc_html_e( 'When editing a page or post, simply click the "Use Fusion Builder" button to activate it, you will see a page that explains all the basic controls and action icons that are included. The user interface has been created in a way that makes page building instinctive and will change your outlook on what a page builder can do. The codebase is clean and optimized providing you with a fast, efficient page builder that will save you time and is a joy to use.' ); ?>
+				<?php /* translators: Link attributes */ ?>
+				<?php printf( __( 'When editing a page or post, simply click the "Fusion Builder Live" button to activate Fusion Builder for front-end editing with its intuitive and self-explanatory UI. See <a %s>Fusion Builder Live Workspace</a> doc for more information. Click "Fusion Builder" button to activate back-end version, you will see a page that explains all the basic controls and action icons that are included. The user interface has been created in a way that makes page building instinctive and will change your outlook on what a page builder can do. The codebase is clean and optimized providing you with a fast, efficient page builder that will save you time and is a joy to use.', 'fusion-builder' ), 'href="https://theme-fusion.com/documentation/fusion-builder/fusion-builder-live/the-fusion-builder-live-workspace/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</div>
 		</div>
 
@@ -26,7 +36,8 @@
 				<span class="fusion-builder-admin-toggle-icon fusion-plus"></span>
 			</div>
 			<div class="fusion-builder-admin-toggle-content">
-				<?php printf( __( 'Currently Fusion Builder is only offered with the Avada theme, so all support is handled through Avada\'s support center. <a href="%1$s" target="%2$s">Sign up at our support center with these steps</a>, then submit a ticket for any questions you have and our team of experts will gladly help you.', 'fusion-builder' ), 'https://theme-fusion.com/documentation/avada/getting-started/avada-theme-support/', '_blank' ); // WPCS: XSS ok. ?>
+				<?php /* translators: Link attributes */ ?>
+				<?php printf( __( 'Currently Fusion Builder is only offered with the Avada theme, so all support is handled through Avada\'s support center. <a %s">Sign up at our support center with these steps</a>, then submit a ticket for any questions you have and our team of experts will gladly help you.', 'fusion-builder' ), 'href="https://theme-fusion.com/documentation/avada/getting-started/avada-theme-support/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</div>
 		</div>
 
@@ -38,8 +49,10 @@
 			<div class="fusion-builder-admin-toggle-content">
 				<?php esc_attr_e( 'Fusion Builder has a complete set of documentation and growing video tutorial library. Both are stored on our company site in the support center, see the links below.', 'fusion-builder' ); ?>
 				<ul>
-					<li><?php printf( __( '<a href="%1$s" target="%2$s">Fusion Builder Documentation</a>', 'fusion-builder' ), 'https://theme-fusion.com/support/', '_blank' ); // WPCS: XSS ok. ?></li>
-					<li><?php printf( __( '<a href="%1$s" target="%2$s">Fusion Builder Video Tutorials</a>', 'fusion-builder' ), 'https://theme-fusion.com/documentation/fusion-builder/videos/', '_blank' ); // WPCS: XSS ok. ?></li>
+				<?php /* translators: Link attributes. */ ?>
+					<li><?php printf( __( '<a %s>Fusion Builder Documentation</a>', 'fusion-builder' ), 'href="https://theme-fusion.com/support/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?></li>
+					<?php /* translators: Link attributes. */ ?>
+					<li><?php printf( __( '<a %s">Fusion Builder Video Tutorials</a>', 'fusion-builder' ), 'href="https://theme-fusion.com/documentation/fusion-builder/videos/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?></li>
 				</ul>
 			</div>
 		</div>
@@ -84,7 +97,8 @@
 		</div>
 		<div class="fusion-builder-admin-toggle-content">
 			<?php esc_html_e( 'Fusion Builder single demo page import can only import the skeleton layout, not an exact replica as seen on a live demo. When importing a single demo page, the items that import are the page layout, page template, fusion page options and image placeholders.', 'fusion-builder' ); ?><br/><br/>
-			<?php printf( __( 'Items that will not import due to technical limitations are Fusion Theme Options, Custom Post Types and Sliders. Since some items do not import, you may see differences in style and layout but they can be easily changed through Avada\'s <a href="%1$s" target="%2$s">advanced options network</a>. If you wish to import everything from a demo, you can import the full demo on the Avada > Import Demos tab.', 'fusion-builder' ), 'https://theme-fusion.com/documentation/avada/options/how-options-work/', '_blank' ); // WPCS: XSS ok. ?>
+			<?php /* translators: Link attributes. */ ?>
+			<?php printf( __( 'Items that will not import due to technical limitations are Fusion Theme Options, Custom Post Types and Sliders. Since some items do not import, you may see differences in style and layout but they can be easily changed through Avada\'s <a %s">advanced options network</a>. If you wish to import everything from a demo, you can import the full demo on the Avada > Import Demos tab.', 'fusion-builder' ), 'href="https://theme-fusion.com/documentation/avada/options/how-options-work/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 	</div>
 
@@ -104,18 +118,8 @@
 			<span class="fusion-builder-admin-toggle-icon fusion-plus"></span>
 		</div>
 		<div class="fusion-builder-admin-toggle-content">
-			<?php printf( __( 'Fusion Builder has been built for extendability and for future development. Add-ons are small extensions that provide extra features when using the Fusion Builder. Currently the available add-ons list is small, but developers across the marketplace are creating new ones. As they become available, you will see them displayed on the "Fusion Builder > Add-ons" tab. If you wish to create an add on, please see our <a href="%1$s" target="%2$s">developer documentation</a>.', 'fusion-builder' ), 'https://theme-fusion.com/documentation/fusion-builder/api/', '_blank' ); // WPCS: XSS ok. ?>
-		</div>
-	</div>
-
-	<div class="fusion-builder-admin-toggle">
-		<div class="fusion-builder-admin-toggle-heading">
-			<h3><?php esc_attr_e( 'Will Fusion Builder Be Turned Into A Front End Builder?', 'fusion-builder' ); ?></h3>
-			<span class="fusion-builder-admin-toggle-icon fusion-plus"></span>
-		</div>
-		<div class="fusion-builder-admin-toggle-content">
-			<?php esc_html_e( 'Yes of course! The front end version of the Fusion Builder is already being planned and developed. We want to offer both a back end and front end page builder to our customer base yet through one easy to use plugin. Fusion Builder will allow you to choose which method you prefer.', 'fusion-builder' ); ?>
-			<?php printf( __( 'The front end version is something we are extremely excited about and will give you full ability to edit your site live on the front end. For more details, <a href="%1$s" target="%2$s">subscribe to our newsletter</a> to get the latest news on development.', 'fusion-builder' ), 'http://theme-fusion.us2.list-manage2.com/subscribe?u=4345c7e8c4f2826cc52bb84cd&id=af30829ace', '_blank' ); // WPCS: XSS ok. ?>
+			<?php /* translators: Link attributes. */ ?>
+			<?php printf( __( 'Fusion Builder has been built for extendability and for future development. Add-ons are small extensions that provide extra features when using the Fusion Builder. Currently the available add-ons list is small, but developers across the marketplace are creating new ones. As they become available, you will see them displayed on the "Fusion Builder > Add-ons" tab. If you wish to create an add on, please see our <a %s">developer documentation</a>.', 'fusion-builder' ), 'href="https://theme-fusion.com/documentation/fusion-builder/api/" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 	</div>
 
@@ -125,7 +129,8 @@
 			<span class="fusion-builder-admin-toggle-icon fusion-plus"></span>
 		</div>
 		<div class="fusion-builder-admin-toggle-content">
-			<?php printf( __( 'The Avada demo pages can only be used after registering your product. You can do this on the <a href="%1$s" target="%2$s">Product Registration</a> tab in the Avada Welcome Screen area.', 'fusion-builder' ), admin_url( 'admin.php?page=avada-registration' ), '_blank' ); // WPCS: XSS ok. ?>
+			<?php /* translators: Link attributes. */ ?>
+			<?php printf( __( 'The Avada demo pages can only be used after registering your product. You can do this on the <a %s>Product Registration</a> tab in the Avada Welcome Screen area.', 'fusion-builder' ), 'href="' . admin_url( 'admin.php?page=avada-registration' ) . '" target="_blank"' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 	</div>
 

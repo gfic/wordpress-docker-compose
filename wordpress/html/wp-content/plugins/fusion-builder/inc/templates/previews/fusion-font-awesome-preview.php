@@ -1,10 +1,11 @@
 <?php
+/**
+ * Underscore.js template.
+ *
+ * @package fusion-builder
+ */
 
-global $fusion_settings;
-if ( ! $fusion_settings ) {
-	$fusion_settings = Fusion_Settings::get_instance();
-}
-
+$fusion_settings   = fusion_get_fusion_settings();
 $icon_color        = $fusion_settings->get( 'icon_color' );
 $icon_circle_color = $fusion_settings->get( 'icon_circle_color' );
 ?>
@@ -13,9 +14,7 @@ $icon_circle_color = $fusion_settings->get( 'icon_circle_color' );
 	<#
 	var
 	icon_color = '',
-	circle_background = '',
 	icon_color = params.iconcolor,
-	circle_background = params.circlecolor,
 	icon = params.icon,
 	circle_background = '';
 
@@ -25,14 +24,14 @@ $icon_circle_color = $fusion_settings->get( 'icon_circle_color' );
 		icon_color = params.iconcolor;
 	}
 
-	if ( 'no' === params.circle && ( '#ffffff' === icon_color || -1 !== icon_color.indexOf( 'rgba(255,255,255' ) ) ) {
-		icon_color = '#dddddd';
-	}
-
-	if ( '' === params.circlecolor ||  ! params.circlecolor ) {
+	if ( '' === params.circlecolor || ! params.circlecolor ) {
 		circle_background = '<?php echo esc_attr( $icon_circle_color ); ?>';
 	} else {
 		circle_background = params.circlecolor;
+	}
+
+	if ( ( 'no' === params.circle || 'yes' === params.circle && ( '#ffffff' === circle_background || -1 !== circle_background.indexOf( 'rgba(255,255,255' ) ) ) && ( '#ffffff' === icon_color || -1 !== icon_color.indexOf( 'rgba(255,255,255' ) ) ) {
+		icon_color = '#dddddd';
 	}
 
 	if ( 'undefined' !== typeof icon && -1 === icon.trim().indexOf( ' ' ) ) {

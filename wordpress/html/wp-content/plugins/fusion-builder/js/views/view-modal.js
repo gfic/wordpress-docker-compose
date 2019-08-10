@@ -1,4 +1,5 @@
 /* global FusionPageBuilderEvents, FusionPageBuilderViewManager, fusionAllElements, FusionPageBuilderApp, fusionHistoryManager, fusionBuilderGetContent, fusionBuilderInsertIntoEditor, fusionBuilderText, FusionPageBuilderElements */
+/* eslint no-shadow: 0 */
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -59,28 +60,28 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				$container = this.$el.find( '.fusion-builder-modal-container' );
 
 				// Show columns library view
-				if ( 'column_library' === this.attributes['data-modal_view'] ) {
+				if ( 'column_library' === this.attributes[ 'data-modal_view' ] ) {
 					view = new FusionPageBuilder.ColumnLibraryView( viewSettings );
 
 				// Show elements library view
-				} else if ( 'element_library' === this.attributes['data-modal_view'] ) {
+				} else if ( 'element_library' === this.attributes[ 'data-modal_view' ] ) {
 					viewSettings.attributes = {
 						'data-parent_cid': this.model.get( 'cid' )
 					};
 					view = new FusionPageBuilder.ElementLibraryView( viewSettings );
 
 				// Show all shortcodes for generator
-				} else if ( 'all_elements_generator' === this.attributes['data-modal_view'] ) {
+				} else if ( 'all_elements_generator' === this.attributes[ 'data-modal_view' ] ) {
 					viewSettings.attributes = {};
 					view = new FusionPageBuilder.GeneratorElementsView( viewSettings );
 
 				// Show multi element element child settings
-				} else if ( 'multi_element_child_settings' === this.attributes['data-modal_view'] ) {
+				} else if ( 'multi_element_child_settings' === this.attributes[ 'data-modal_view' ] ) {
 					viewSettings.attributes = {};
 					view = new FusionPageBuilder.MultiElementSettingsView( viewSettings );
 
 				// Show element settings
-				} else if ( 'element_settings' === this.attributes['data-modal_view'] ) {
+				} else if ( 'element_settings' === this.attributes[ 'data-modal_view' ] ) {
 					viewSettings.attributes = {
 						'data-element_type': this.model.get( 'element_type' )
 					};
@@ -108,7 +109,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 
 				// Element search field
-				if ( 'column_library' === this.attributes['data-modal_view'] || 'element_library' === this.attributes['data-modal_view'] || 'all_elements_generator' === this.attributes['data-modal_view'] ) {
+				if ( 'column_library' === this.attributes[ 'data-modal_view' ] || 'element_library' === this.attributes[ 'data-modal_view' ] || 'all_elements_generator' === this.attributes[ 'data-modal_view' ] ) {
 					this.elementSearchFilter();
 				}
 
@@ -196,57 +197,53 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						FusionPageBuilderApp.shortcodeGeneratorEditorID = '';
 					}
 
-				} else {
+				} else if ( 'undefined' !== this.model.get( 'added' ) && 'manually' === this.model.get( 'added' ) ) { // If element was added manually ( by clicking + add element )
 
-					// If element was added manually ( by clicking + add element )
-					if ( 'undefined' !== this.model.get( 'added' ) && 'manually' === this.model.get( 'added' ) ) {
+					if ( 'fusion_builder_row' === this.model.get( 'element_type' ) ) {
+						parentID   = this.model.get( 'parent' );
+						parentView = FusionPageBuilderViewManager.getView( parentID );
 
-						if ( 'fusion_builder_row' === this.model.get( 'element_type' ) ) {
-							parentID   = this.model.get( 'parent' );
-							parentView = FusionPageBuilderViewManager.getView( parentID );
-
-							if ( 'undefined' !== typeof parentView ) {
-								parentView.removeContainer();
-							}
-
-						} else {
-
-							// On Element creation set default options if Cancel button is clicked
-							defaultParams = fusionAllElements[ this.model.get( 'element_type' ) ].params;
-							params        = {};
-
-							// Process default parameters from shortcode
-							_.each( defaultParams, function( param ) {
-								value = ( _.isObject( param.value ) ) ? param.default : param.value;
-								params[ param.param_name ] = value;
-							} );
-
-							attributes = {
-								params: params
-							};
-
-							this.model.set( attributes );
-
-							if ( event ) {
-								FusionPageBuilderEvents.trigger( 'fusion-element-added' );
-							}
+						if ( 'undefined' !== typeof parentView ) {
+							parentView.removeContainer();
 						}
 
-						if ( 'element' === this.model.get( 'type' ) ) {
-							this.deleteModel();
+					} else {
+
+						// On Element creation set default options if Cancel button is clicked
+						defaultParams = fusionAllElements[ this.model.get( 'element_type' ) ].params;
+						params        = {};
+
+						// Process default parameters from shortcode
+						_.each( defaultParams, function( param ) {
+							value = ( _.isObject( param.value ) ) ? param[ 'default' ] : param.value;
+							params[ param.param_name ] = value;
+						} );
+
+						attributes = {
+							params: params
+						};
+
+						this.model.set( attributes );
+
+						if ( event ) {
+							FusionPageBuilderEvents.trigger( 'fusion-element-added' );
 						}
-
-						if ( 'undefined' !== typeof this.model && 'undefined' !== typeof this.model.get( 'multi' ) && 'multi_element_parent' === this.model.get( 'multi' ) ) {
-
-							// Remove sortable UI view
-							FusionPageBuilderEvents.trigger( 'fusion-multi-remove-sortables-view' );
-						}
-
 					}
 
+					if ( 'element' === this.model.get( 'type' ) ) {
+						this.deleteModel();
+					}
+
+					if ( 'undefined' !== typeof this.model && 'undefined' !== typeof this.model.get( 'multi' ) && 'multi_element_parent' === this.model.get( 'multi' ) ) {
+
+						// Remove sortable UI view
+						FusionPageBuilderEvents.trigger( 'fusion-multi-remove-sortables-view' );
+					}
 				}
 
 				this.removeOverlay();
+
+				FusionPageBuilderEvents.trigger( 'fusion-settings-modal-cancel' );
 
 				this.remove();
 			},
@@ -267,7 +264,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					editorID,
 					functionName,
 					sortableUIView,
-					sortableCID;
+					sortableCID,
+					self = this;
 
 				if ( event ) {
 					event.preventDefault();
@@ -309,57 +307,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						settingValue,
 						name;
 
-					// Multi element
-					if ( $thisEl.is( '#generator_element_content' ) ||
-						$thisEl.is( '#fusion_builder_content_main' ) ||
-						$thisEl.is( '#element_content' ) ||
-						$thisEl.is( '#generator_multi_child_content' ) ) {
-						name = 'element_content';
-					} else {
-						name = $thisEl.attr( 'id' );
-					}
-
-					if ( $thisEl.is( '#fusion_builder_content_main' ) ) {
-						settingValue = $thisEl.val();
-
-					} else if ( ! $thisEl.is( ':checkbox' ) ) {
-
-						if ( $thisEl.is( '#generator_element_content' ) ) {
-							settingValue = fusionBuilderGetContent( 'generator_element_content' );
-
-						} else if ( $thisEl.is( '#generator_multi_child_content' ) ) {
-							settingValue = fusionBuilderGetContent( 'generator_multi_child_content' );
-
-						} else if ( $thisEl.is( 'textarea#element_content' ) && $thisEl.parents( '.fusion-builder-option' ).hasClass( 'tinymce' ) ) {
-							settingValue = fusionBuilderGetContent( 'element_content' );
-
-						} else {
-							settingValue = $thisEl.val();
-						}
-					}
-
-					// Escape input fields
-					if ( $thisEl.is( 'input' ) && '' !== settingValue ) {
-						if ( ! $thisEl.hasClass( 'fusion-builder-upload-field' ) && ! $thisEl.is( '#generator_element_content' ) && ! $thisEl.is( '#generator_multi_child_content' ) ) {
-							settingValue = _.escape( settingValue );
-						} else {
-							settingValue = settingValue;
-						}
-					}
-
-					// Encode raw-textarea.
-					if ( $thisEl.hasClass( 'fusion-builder-raw-textarea' ) ) {
-						settingValue = FusionPageBuilderApp.base64Encode( settingValue );
-					}
-
-					// Encode code field type.
-					if ( $thisEl.hasClass( 'fusion-builder-code-block' ) && 1 === Number( FusionPageBuilderApp.disable_encoding ) ) {
-						settingValue = FusionPageBuilderApp.base64Encode( settingValue );
-					}
-
-					if ( 'infobox_content' === name ) {
-						settingValue = _.escape( settingValue );
-					}
+					name                      = self.getSettingName( $thisEl, false );
+					settingValue              = self.getSettingValue( $thisEl, false );
 					attributes.params[ name ] = settingValue;
 
 				} );
@@ -395,8 +344,10 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 						// Remove sortable UI view
 						sortableCID = this.$el.find( '.fusion-builder-option-advanced-module-settings' ).data( 'cid' );
-						sortableUIView = FusionPageBuilderViewManager.getView( sortableCID );
-						sortableUIView.removeView();
+						if ( 'undefined' !== typeof sortableCID ) {
+							sortableUIView = FusionPageBuilderViewManager.getView( sortableCID );
+							sortableUIView.removeView();
+						}
 
 						sortableCID = '';
 						sortableUIView = '';
@@ -465,7 +416,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 						// Save history state
 						if ( 'undefined' === typeof this.model.get( 'added' ) ) {
-							window.fusionHistoryState = fusionBuilderText.edited + ' ' + fusionAllElements[this.model.get( 'element_type' )].name + ' ' + fusionBuilderText.element;
+							window.fusionHistoryState = fusionBuilderText.edited + ' ' + fusionAllElements[ this.model.get( 'element_type' ) ].name + ' ' + fusionBuilderText.element;
 						}
 
 						// Remove 'added' attribute from newly created elements
@@ -476,7 +427,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						// Remove each instance of tinyMCE editor from this view
 						this.$el.find( '.tinymce' ).each( function() {
 							editorID = $( this ).find( 'textarea.fusion-editor-field' ).attr( 'id' );
-								FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
+							FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
 						} );
 
 						// Remove sortable UI view
@@ -494,7 +445,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 						// Save history state
 						if ( 'undefined' === typeof this.model.get( 'added' ) ) {
-							window.fusionHistoryState = fusionBuilderText.edited + ' ' + fusionAllElements[this.model.get( 'element_type' )].name + ' ' + fusionBuilderText.element;
+							window.fusionHistoryState = fusionBuilderText.edited + ' ' + fusionAllElements[ this.model.get( 'element_type' ) ].name + ' ' + fusionBuilderText.element;
 						}
 
 						// Remove 'added' attribute from newly created elements
@@ -505,7 +456,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						// Remove each instance of tinyMCE editor from this view
 						this.$el.find( '.tinymce' ).each( function() {
 							editorID = $( this ).find( 'textarea.fusion-editor-field' ).attr( 'id' );
-								FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
+							FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
 						} );
 
 						this.remove();
@@ -535,11 +486,110 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				// Remove each instance of tinyMCE editor from this view
 				this.$el.find( '.tinymce' ).each( function() {
 					editorID = $( this ).find( 'textarea.fusion-editor-field' ).attr( 'id' );
-						FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
+					FusionPageBuilderApp.fusionBuilderMCEremoveEditor( editorID );
 				} );
 
 				FusionPageBuilderApp.activeModal = '';
 
+				FusionPageBuilderEvents.trigger( 'fusion-settings-modal-save' );
+
+			},
+
+			getSettingName: function( $thisEl, fromRepeater ) {
+				var name;
+
+				// Skip options within repeater.
+				if ( $thisEl.parents( '.repeater-fields' ).length && ! fromRepeater ) {
+					return;
+				}
+
+				// Multi element
+				if ( $thisEl.is( '#generator_element_content' ) ||
+					$thisEl.is( '#fusion_builder_content_main' ) ||
+					$thisEl.is( '#element_content' ) ||
+					$thisEl.is( '#generator_multi_child_content' ) ) {
+					name = 'element_content';
+				} else {
+					name = $thisEl.attr( 'id' );
+				}
+
+				return name;
+			},
+
+			getSettingValue: function( $thisEl, fromRepeater  ) {
+				var settingValue,
+					self = this;
+
+				// Skip options within repeater.
+				if ( $thisEl.parents( '.repeater-fields' ).length && ! fromRepeater ) {
+					return;
+				}
+
+				if ( $thisEl.is( '#fusion_builder_content_main' ) ) {
+					settingValue = $thisEl.val();
+
+				} else if ( ! $thisEl.is( ':checkbox' ) ) {
+
+					if ( $thisEl.is( '#generator_element_content' ) ) {
+						settingValue = fusionBuilderGetContent( 'generator_element_content' );
+
+					} else if ( $thisEl.is( '#generator_multi_child_content' ) ) {
+						settingValue = fusionBuilderGetContent( 'generator_multi_child_content' );
+
+					} else if ( $thisEl.is( 'textarea#element_content' ) && $thisEl.parents( '.fusion-builder-option' ).hasClass( 'tinymce' ) ) {
+						settingValue = fusionBuilderGetContent( 'element_content' );
+
+					} else {
+						settingValue = $thisEl.val();
+					}
+				}
+
+				// Escape input fields
+				if ( $thisEl.is( 'input' ) && '' !== settingValue ) {
+					if ( ! $thisEl.hasClass( 'fusion-builder-upload-field' ) && ! $thisEl.is( '#generator_element_content' ) && ! $thisEl.is( '#generator_multi_child_content' ) ) {
+						settingValue = _.escape( settingValue );
+					}
+				}
+
+				// Encode raw-textarea.
+				if ( $thisEl.hasClass( 'fusion-builder-raw-textarea' ) ) {
+					settingValue = FusionPageBuilderApp.base64Encode( settingValue );
+				}
+
+				// Encode code field type.
+				if ( $thisEl.hasClass( 'fusion-builder-code-block' ) && 1 === Number( FusionPageBuilderApp.disable_encoding ) ) {
+					settingValue = FusionPageBuilderApp.base64Encode( settingValue );
+				}
+
+				if ( $thisEl.hasClass( 'fusion-repeater-value' ) ) {
+					settingValue = self.getRepaterValues( $thisEl );
+				}
+
+				if ( 'infobox_content' === name ) {
+					settingValue = _.escape( settingValue );
+				}
+				return settingValue;
+			},
+
+			getRepaterValues: function( $el ) {
+				var value = [],
+					self  = this,
+					rowValues;
+
+				$el.parent().find( '.repeater-row' ).each( function() {
+					rowValues = {};
+					jQuery( this ).find( 'input, select, textarea, #fusion_builder_content_main, #fusion_builder_content_main_child, #generator_element_content, #generator_multi_child_content, #element_content' ).not( ':input[type=button], .fusion-icon-search, .category-search-field, .fusion-builder-table input, .fusion-builder-table textarea, .single-builder-dimension .fusion-builder-dimension input, .fusion-hide-from-atts' ).each( function() {
+						var $input = jQuery( this ),
+							name   = self.getSettingName( $input, true ),
+							value  = self.getSettingValue( $input, true );
+						rowValues[ name ] = value;
+					} );
+					value.push( rowValues );
+				} );
+
+				value    = JSON.stringify( value );
+				value    = FusionPageBuilderApp.base64Encode( value );
+				return value;
 			},
 
 			removeOverlay: function() {
@@ -568,6 +618,9 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					}
 
 					view.find( '.fusion-builder-empty-section' ).html( emptySectionText );
+
+					// Update status icons UI
+					FusionPageBuilderViewManager.getView( this.model.get( 'cid' ) ).updateStatusIcons();
 				}
 
 				if ( 'undefined' !== typeof fusionAllElements[ elementType ].preview ) {
@@ -600,6 +653,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						thisEl.find( '.fusion-builder-all-modules li' ).each( function() {
 
 							name = $( this ).find( '.fusion_module_title' ).text().trim().toLowerCase();
+							name = name.replace( 'this is a global column.', '' );
 
 							// Also show portfolio on recent works search
 							if ( 'portfolio' === name ) {
@@ -622,4 +676,4 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			}
 		} );
 	} );
-} ( jQuery ) );
+}( jQuery ) );

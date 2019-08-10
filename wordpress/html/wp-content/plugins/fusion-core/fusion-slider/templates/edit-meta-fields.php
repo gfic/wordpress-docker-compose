@@ -27,7 +27,7 @@
 	<th scope="row" valign="top"><label for="term_meta[slider_content_width]"><?php esc_attr_e( 'Slider Content Max Width', 'fusion-core' ); ?></label></th>
 	<td>
 		<input type="text" name="term_meta[slider_content_width]" id="term_meta[slider_content_width]" value="<?php echo ( isset( $term_meta['slider_content_width'] ) && esc_attr( $term_meta['slider_content_width'] ) ) ? esc_attr( $term_meta['slider_content_width'] ) : ''; ?>">
-		<p class="description"><?php esc_attr_e( 'Controls the width of content,  In pixels, ex: 850px. Leave blank for site width.', 'fusion-core' ); ?></p>
+		<p class="description"><?php esc_attr_e( 'Controls the width of content. In pixels, ex: 850px. Leave blank for site width.', 'fusion-core' ); ?></p>
 	</td>
 </tr>
 <tr class="form-field form-field-checkbox">
@@ -45,8 +45,8 @@
 			<option value=""><?php esc_attr_e( 'None', 'fusion-core' ); ?></option>
 			<option value="scroll_down_indicator" <?php echo ( isset( $term_meta['slider_indicator'] ) && 'scroll_down_indicator' === esc_attr( $term_meta['slider_indicator'] ) ) ? 'selected="selected"' : ''; ?>><?php esc_attr_e( 'Scroll Down Indicator', 'fusion-core' ); ?></option>
 			<option value="pagination_circles" <?php echo ( isset( $term_meta['slider_indicator'] ) && 'pagination_circles' === esc_attr( $term_meta['slider_indicator'] ) ) ? 'selected="selected"' : ''; ?>><?php esc_attr_e( 'Pagination Circles', 'fusion-core' ); ?></option>
-	  </select>
-		<p class="description"><?php esc_attr_e( 'Choose do you want to display paginatin circler or scroll down indicator.', 'fusion-core' ); ?></p>
+		</select>
+		<p class="description"><?php esc_attr_e( 'Choose do you want to display pagination circler or scroll down indicator.', 'fusion-core' ); ?></p>
 	</td>
 </tr>
 <tr class="form-field">
@@ -142,7 +142,11 @@
 		<option value="fade" <?php echo ( esc_attr( $term_meta['animation'] ) === 'fade' ) ? 'selected="selected"' : ''; ?>>Fade</option>
 		<option value="slide" <?php echo ( esc_attr( $term_meta['animation'] ) === 'slide' ) ? 'selected="selected"' : ''; ?>>Slide</option>
 		</select>
-		<p class="description"><?php _e( 'The type of animation when slides rotate.<br/>Please Note: Fade effect does not work in IE.', 'fusion-core' ); // WPCS: XSS ok. ?></p>
+		<p class="description">
+			<?php esc_html_e( 'The type of animation when slides rotate.', 'fusion-core' ); ?>
+			<br/>
+			<?php esc_html_e( 'Please Note: Fade effect does not work in IE.', 'fusion-core' ); ?>
+		</p>
 	</td>
 </tr>
 <tr class="form-field">

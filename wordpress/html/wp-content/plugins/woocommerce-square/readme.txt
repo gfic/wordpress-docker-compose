@@ -4,7 +4,7 @@ Tags: credit card, square, woocommerce, inventory sync
 Requires at least: 4.4
 Tested up to: 5.1
 Requires PHP: 5.6
-Stable tag: 1.0.37
+Stable tag: 1.0.38
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -56,6 +56,9 @@ If you get stuck, you can ask for help in the Plugin Forum.
 1. The settings panel.
 
 == Changelog ==
+
+= 1.0.38 - 2019-07-05 =
+* Fix - Re-deploy due to erroneous inclusion of trunk folder
 
 = 1.0.37 - 2019-04-16 =
 * Fix - Use correct assets loading scheme.

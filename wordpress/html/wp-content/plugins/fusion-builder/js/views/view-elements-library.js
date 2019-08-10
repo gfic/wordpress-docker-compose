@@ -1,4 +1,5 @@
 /* global FusionPageBuilderEvents, FusionPageBuilderViewManager, FusionPageBuilderApp, fusionHistoryManager, fusionBuilderText, fusionAllElements */
+/* eslint no-unused-vars: 0 */
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -13,7 +14,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			template: FusionPageBuilder.template( $( '#fusion-builder-modules-template' ).html() ),
 
 			events: {
-				'click .fusion-builder-all-modules .fusion-builder-element': 'addModule',
+				'click .fusion-builder-all-modules .fusion-builder-element:not(.fusion-builder-element-generator)': 'addModule',
 				'click .fusion_builder_custom_elements_load': 'addCustomModule',
 				'click .fusion-builder-column-layouts li': 'addNestedColumns'
 			},
@@ -24,6 +25,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			},
 
 			render: function() {
+				var self = this;
+
 				this.$el.html( this.template( FusionPageBuilderViewManager.toJSON() ) );
 
 				// Load saved elements
@@ -33,6 +36,10 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				if ( 'true' === FusionPageBuilderApp.innerColumn ) {
 					this.$el.addClass( 'fusion-add-to-nested' );
 				}
+
+				setTimeout( function() {
+					self.$el.find( '.fusion-elements-filter' ).focus();
+				}, 50 );
 
 				return this;
 			},
@@ -48,9 +55,9 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				if ( true === FusionPageBuilderApp.layoutIsLoading ) {
 					return;
-				} else {
-					FusionPageBuilderApp.layoutIsLoading = true;
 				}
+
+				FusionPageBuilderApp.layoutIsLoading = true;
 
 				layoutID = $( event.currentTarget ).closest( 'li' ).data( 'layout_id' );
 				title    = $( event.currentTarget ).find( '.fusion_module_title' ).text();
@@ -97,6 +104,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				var $thisEl,
 					label,
 					params,
+					defaultParams,
 					multi,
 					type,
 					name,
@@ -117,6 +125,15 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					name   = fusionAllElements[ label ].name;
 					allowGenerator = fusionAllElements[ label ].allow_generator;
 
+					// Get default options
+					defaultParams = fusionAllElements[ label ].params;
+					params = {};
+
+					// Process default parameters from shortcode
+					_.each( defaultParams, function( param )  {
+						params[ param.param_name ] = ( _.isObject( param.value ) ) ? param[ 'default' ] : param.value;
+					} );
+
 				} else {
 					params = '';
 					multi  = '';
@@ -128,17 +145,19 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					window.fusionHistoryState = fusionBuilderText.added + ' ' + name + ' ' + fusionBuilderText.element;
 				}
 
-				this.collection.add( [ {
-					type: 'element',
-					added: 'manually',
-					cid: FusionPageBuilderViewManager.generateCid(),
-					element_type: type,
-					params: params,
-					parent: this.attributes['data-parent_cid'],
-					view: this.options.view,
-					allow_generator: allowGenerator,
-					multi: multi
-				} ] );
+				this.collection.add( [
+					{
+						type: 'element',
+						added: 'manually',
+						cid: FusionPageBuilderViewManager.generateCid(),
+						element_type: type,
+						params: params,
+						parent: this.attributes[ 'data-parent_cid' ],
+						view: this.options.view,
+						allow_generator: allowGenerator,
+						multi: multi
+					}
+				] );
 
 				this.remove();
 
@@ -163,14 +182,16 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				moduleID = FusionPageBuilderViewManager.generateCid();
 
-				this.collection.add( [ {
-					type: 'fusion_builder_row_inner',
-					element_type: 'fusion_builder_row_inner',
-					cid: moduleID,
-					parent: this.model.get( 'cid' ),
-					view: this,
-					appendAfter: appendAfter
-				} ] );
+				this.collection.add( [
+					{
+						type: 'fusion_builder_row_inner',
+						element_type: 'fusion_builder_row_inner',
+						cid: moduleID,
+						parent: this.model.get( 'cid' ),
+						view: this,
+						appendAfter: appendAfter
+					}
+				] );
 
 				FusionPageBuilderApp.activeModal = 'column';
 
@@ -187,23 +208,23 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				// Process default parameters from shortcode
 				_.each( defaultParams, function( param )  {
 					if ( _.isObject( param.value ) ) {
-						value = param.default;
+						value = param[ 'default' ];
 					} else {
 						value = param.value;
 					}
-					params[param.param_name] = value;
+					params[ param.param_name ] = value;
 				} );
 
 				_.each( layout, function( element, index ) { // jshint ignore:line
 					var columnAttributes = {
-							type: 'fusion_builder_column_inner',
-							element_type: 'fusion_builder_column_inner',
-							cid: FusionPageBuilderViewManager.generateCid(),
-							parent: moduleID,
-							layout: element,
-							view: thisView,
-							params: params
-						};
+						type: 'fusion_builder_column_inner',
+						element_type: 'fusion_builder_column_inner',
+						cid: FusionPageBuilderViewManager.generateCid(),
+						parent: moduleID,
+						layout: element,
+						view: thisView,
+						params: params
+					};
 
 					that.collection.add( [ columnAttributes ] );
 
@@ -224,4 +245,4 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			}
 		} );
 	} );
-} ( jQuery ) );
+}( jQuery ) );

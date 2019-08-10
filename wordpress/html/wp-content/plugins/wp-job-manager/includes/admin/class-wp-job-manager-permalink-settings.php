@@ -1,13 +1,17 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Permalink_Settings.
+ *
+ * @package wp-job-manager
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
  * Handles front admin page for WP Job Manager.
  *
- * @package wp-job-manager
  * @see https://github.com/woocommerce/woocommerce/blob/3.0.8/includes/admin/class-wc-admin-permalink-settings.php  Based on WooCommerce's implementation.
  * @since 1.27.0
  */
@@ -18,7 +22,7 @@ class WP_Job_Manager_Permalink_Settings {
 	 * @var self
 	 * @since  1.27.0
 	 */
-	private static $_instance = null;
+	private static $instance = null;
 
 	/**
 	 * Permalink settings.
@@ -36,10 +40,10 @@ class WP_Job_Manager_Permalink_Settings {
 	 * @return self Main instance.
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self();
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
 		}
-		return self::$_instance;
+		return self::$instance;
 	}
 
 	/**
@@ -131,26 +135,32 @@ class WP_Job_Manager_Permalink_Settings {
 			return;
 		}
 
-		if ( isset( $_POST['permalink_structure'] ) ) {
-			if ( function_exists( 'switch_to_locale' ) ) {
-				switch_to_locale( get_locale() );
-			}
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WP core handles nonce check for settings save.
+		if ( ! isset( $_POST['permalink_structure'] ) ) {
+			// We must not be saving permalinks.
+			return;
+		}
 
-			$permalink_settings = WP_Job_Manager_Post_Types::get_raw_permalink_settings();
+		if ( function_exists( 'switch_to_locale' ) ) {
+			switch_to_locale( get_locale() );
+		}
 
-			$permalink_settings['job_base']      = sanitize_title_with_dashes( $_POST['wpjm_job_base_slug'] );
-			$permalink_settings['category_base'] = sanitize_title_with_dashes( $_POST['wpjm_job_category_slug'] );
-			$permalink_settings['type_base']     = sanitize_title_with_dashes( $_POST['wpjm_job_type_slug'] );
+		$permalink_settings = WP_Job_Manager_Post_Types::get_raw_permalink_settings();
 
-			if ( isset( $_POST['wpjm_job_listings_archive_slug'] ) ) {
-				$permalink_settings['jobs_archive'] = sanitize_title_with_dashes( $_POST['wpjm_job_listings_archive_slug'] );
-			}
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- WP core handles nonce check for settings save.
+		$permalink_settings['job_base']      = isset( $_POST['wpjm_job_base_slug'] ) ? sanitize_title_with_dashes( wp_unslash( $_POST['wpjm_job_base_slug'] ) ) : '';
+		$permalink_settings['category_base'] = isset( $_POST['wpjm_job_category_slug'] ) ? sanitize_title_with_dashes( wp_unslash( $_POST['wpjm_job_category_slug'] ) ) : '';
+		$permalink_settings['type_base']     = isset( $_POST['wpjm_job_type_slug'] ) ? sanitize_title_with_dashes( wp_unslash( $_POST['wpjm_job_type_slug'] ) ) : '';
 
-			update_option( WP_Job_Manager_Post_Types::PERMALINK_OPTION_NAME, wp_json_encode( $permalink_settings ) );
+		if ( isset( $_POST['wpjm_job_listings_archive_slug'] ) ) {
+			$permalink_settings['jobs_archive'] = sanitize_title_with_dashes( wp_unslash( $_POST['wpjm_job_listings_archive_slug'] ) );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-			if ( function_exists( 'restore_current_locale' ) ) {
-				restore_current_locale();
-			}
+		update_option( WP_Job_Manager_Post_Types::PERMALINK_OPTION_NAME, wp_json_encode( $permalink_settings ) );
+
+		if ( function_exists( 'restore_current_locale' ) ) {
+			restore_current_locale();
 		}
 	}
 }

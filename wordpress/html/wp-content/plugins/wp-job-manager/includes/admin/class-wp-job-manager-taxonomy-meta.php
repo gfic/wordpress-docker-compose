@@ -1,4 +1,10 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Taxonomy_Meta.
+ *
+ * @package wp-job-manager
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -6,7 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Handles taxonomy meta custom fields. Just used for job type.
  *
- * @package wp-job-manager
  * @since 1.28.0
  */
 class WP_Job_Manager_Taxonomy_Meta {
@@ -16,7 +21,7 @@ class WP_Job_Manager_Taxonomy_Meta {
 	 * @var self
 	 * @since  1.28.0
 	 */
-	private static $_instance = null;
+	private static $instance = null;
 
 	/**
 	 * Allows for accessing single instance of class. Class should only be constructed once per call.
@@ -26,10 +31,10 @@ class WP_Job_Manager_Taxonomy_Meta {
 	 * @return self Main instance.
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self();
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
 		}
-		return self::$_instance;
+		return self::$instance;
 	}
 
 	/**
@@ -55,9 +60,13 @@ class WP_Job_Manager_Taxonomy_Meta {
 	 */
 	public function set_schema_org_employment_type_field( $term_id, $tt_id ) {
 		$employment_types = wpjm_job_listing_employment_type_options();
-		if ( isset( $_POST['employment_type'] ) && isset( $employment_types[ $_POST['employment_type'] ] ) ) {
-			update_term_meta( $term_id, 'employment_type', $_POST['employment_type'] );
-		} elseif ( isset( $_POST['employment_type'] ) ) {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce check handled by WP core.
+		$input_employment_type = isset( $_POST['employment_type'] ) ? sanitize_text_field( wp_unslash( $_POST['employment_type'] ) ) : null;
+
+		if ( $input_employment_type && isset( $employment_types[ $input_employment_type ] ) ) {
+			update_term_meta( $term_id, 'employment_type', sanitize_text_field( wp_unslash( $input_employment_type ) ) );
+		} elseif ( null !== $input_employment_type ) {
 			delete_term_meta( $term_id, 'employment_type' );
 		}
 	}

@@ -24,27 +24,145 @@ if ( ! function_exists( 'fusion_get_option' ) ) {
 	/**
 	 * Get theme option or page option.
 	 *
-	 * @param  string  $theme_option Theme option ID.
-	 * @param  string  $page_option  Page option ID.
-	 * @param  integer $post_id      Post/Page ID.
-	 * @return string                Theme option or page option value.
+	 * @param  string  $option_name Theme option ID.
+	 * @param  string  $page_option Page option ID.
+	 * @param  integer $post_id     Post/Page ID.
+	 * @return string               Theme option or page option value.
 	 */
-	function fusion_get_option( $theme_option, $page_option, $post_id ) {
+	function fusion_get_option( $option_name, $page_option = false, $post_id = false ) {
 
-		if ( $theme_option && $page_option && $post_id ) {
-			$page_option  = strtolower( fusion_get_page_option( $page_option, $post_id ) );
-			$theme_option = strtolower( fusion_library()->get_option( $theme_option ) );
+		$value       = '';
+		$value_found = false;
+		$id          = Fusion::get_instance()->get_page_id();
+		$is_archive  = ( false !== strpos( $id, 'archive' ) || false === $id );
+		$map         = Fusion_Options_Map::get_option_map();
 
-			if ( 'default' !== $page_option && ! empty( $page_option ) ) {
-				return $page_option;
-			}
-			return $theme_option;
-		} elseif ( $theme_option && 0 === intval( $post_id ) ) {
-			$theme_option = strtolower( fusion_library()->get_option( $theme_option ) );
-			return $theme_option;
+		/**
+		 * Tweak for the "mobile_header_bg_color" option.
+		 */
+		if ( 'mobile_archive_header_bg_color' === $option_name && ! is_archive() ) {
+			$option_name = 'mobile_header_bg_color';
 		}
-		return false;
 
+		if ( false === strpos( $option_name, '[' ) ) {
+			$option_name_located = Fusion_Options_Map::get_option_name_from_theme_option( $option_name );
+			if ( is_array( $option_name_located ) ) {
+				$value = [];
+				foreach ( $option_name_located as $key => $option_id ) {
+					$value[ $key ] = fusion_get_option( $option_id );
+				}
+			}
+		}
+
+		/**
+		 * Get term options.
+		 * Overrides page-option & theme-option.
+		 */
+		if ( $is_archive ) {
+			$tax_value = fusion_get_term_option( Fusion_Options_Map::get_option_name( $option_name, 'term' ), intval( $id ) );
+			if ( null !== $tax_value ) {
+				$value_found = true;
+				$value       = $tax_value;
+			}
+		}
+
+		// Make sure this is not an override that should not be happening.
+		// See https://github.com/Theme-Fusion/Avada/issues/8122 for details.
+		$skip = (
+			( '' === fusion_get_page_option( 'header_bg' ) && in_array( $option_name, [ 'header_bg_repeat', 'header_bg_full' ], true ) ) ||
+			( '' === fusion_get_page_option( 'wide_page_bg_repeat' ) && 'content_bg_repeat' === $option_name )
+		);
+
+		// Check for page-options if we couldn't find an option in taxonomy values.
+		if ( ! $value_found && ! $skip ) {
+			/**
+			 * Get page options.
+			 * Overrides theme-option.
+			 */
+			if ( is_singular() || fusion_is_shop( $id ) || ( is_home() && ! is_front_page() ) ) {
+
+				$post_id = ( $post_id ) ? $post_id : $id;
+
+				// Get the option-name.
+				$page_option = ( false === $page_option ) ? Fusion_Options_Map::get_option_name( $option_name, 'post' ) : $page_option;
+
+				$exception = false;
+				if ( 'bg_full' === $option_name && ! fusion_get_page_option( 'page_bg', $post_id ) ) {
+					$exception = true;
+				}
+
+				if ( ! $exception ) {
+
+					// Get the page-option.
+					$page_option = fusion_get_page_option( $page_option, $post_id );
+					if ( 'default' !== $page_option && false !== $page_option && '' !== $page_option ) {
+						$value_found = true;
+						$value       = $page_option;
+
+						// If the option is mismatched and bool, reverse the logic.
+						if ( is_string( $option_name ) && isset( $map[ $option_name ] ) && isset( $map[ $option_name ]['is_bool'] ) && true === $map[ $option_name ]['is_bool'] && isset( $map[ $option_name ]['mismatch'] ) && true === $map[ $option_name ]['mismatch'] ) {
+							$value = ( '1' === $value || 1 === $value || true === $value || 'yes' === strtolower( $value ) ) ? false : true;
+						}
+					}
+				}
+			}
+		}
+
+		// Get the theme-option value if we couldn't find a value in page-options or taxonomy-options.
+		if ( ! $value_found ) {
+			/**
+			 * Get the theme options.
+			 */
+			$option_name = Fusion_Options_Map::get_option_name( $option_name, 'theme' );
+			$value       = fusion_get_theme_option( $option_name );
+		}
+
+		// Tweak values for the "page_title_bar" option - TOs and POs have different formats.
+		if ( 'page_title_bar' === $option_name ) {
+			$value = strtolower( $value );
+			$value = 'yes' === $value ? 'bar_and_content' : $value;
+			$value = 'yes_without_bar' === $value ? 'content_only' : $value;
+			$value = 'no' === $value ? 'hide' : $value;
+		}
+
+		// Tweak values for the "page_title_bar_bs" option - TOs and POs have different formats.
+		if ( 'page_title_bar_bs' === $option_name ) {
+			$value = strtolower( $value );
+			$value = 'searchbar' === $value ? 'search_box' : $value;
+		}
+
+		/**
+		 * Apply mods for options.
+		 */
+		if ( is_string( $option_name ) && isset( $map[ $option_name ] ) && isset( $map[ $option_name ]['is_bool'] ) && true === $map[ $option_name ]['is_bool'] ) {
+			return ( '1' === $value || 1 === $value || true === $value || 'yes' === $value );
+		}
+		return $value;
+	}
+}
+
+if ( ! function_exists( 'fusion_get_theme_option' ) ) {
+	/**
+	 * Gets a theme-option value.
+	 *
+	 * @since 2.0
+	 * @param string|array $option The option we want to get. If we use an array, then the 2nd arg is the subset.
+	 * @param string       $subset A subset of the option.
+	 * @return mixed
+	 */
+	function fusion_get_theme_option( $option = '', $subset = '' ) {
+		if ( is_string( $option ) && false !== strpos( $option, '[' ) ) {
+			$option = explode( '[', str_replace( ']', '', $option ) );
+		}
+		if ( is_array( $option ) ) {
+			$subset = ( isset( $option[1] ) && '' === $subset ) ? $option[1] : $subset;
+			$option = $option[0];
+		}
+
+		if ( '' !== $subset ) {
+			return ( class_exists( 'Avada' ) ) ? Avada()->settings->get( $option, $subset ) : fusion_library()->get_option( $option, $subset );
+		}
+		return ( class_exists( 'Avada' ) ) ? Avada()->settings->get( $option ) : fusion_library()->get_option( $option );
 	}
 }
 
@@ -56,16 +174,73 @@ if ( ! function_exists( 'fusion_get_page_option' ) ) {
 	 * @param  integer $post_id     Post/Page ID.
 	 * @return string               Value of page option.
 	 */
-	function fusion_get_page_option( $page_option, $post_id ) {
+	function fusion_get_page_option( $page_option, $post_id = null ) {
+
+		if ( ! $post_id ) {
+			$post_id = Fusion::get_instance()->get_page_id();
+		}
 
 		if ( $page_option && $post_id ) {
 			if ( 0 === strpos( $page_option, 'pyre_' ) ) {
 				$page_option = str_replace( 'pyre_', '', $page_option );
 			}
+
+			/**
+			 * Modification for the combined_header_bg_color page-option.
+			 * In the past there were separate controls for color & opacity
+			 * which were combined to a single rgba control in Avada v5.7.
+			 */
+			if ( 'combined_header_bg_color' === $page_option ) {
+				$value = get_post_meta( $post_id, 'pyre_' . $page_option, true );
+				if ( ! $value ) {
+					$color = get_post_meta( $post_id, 'pyre_header_bg_color', true );
+					$alpha = get_post_meta( $post_id, 'pyre_header_bg_opacity', true );
+					if ( $color || is_numeric( $alpha ) ) {
+						$to_color        = fusion_get_theme_option( 'header_bg_color' );
+						$header_bg_color = ( $color && ! empty( $color ) ) ? $color : $to_color;
+						$header_bg_alpha = ( is_numeric( $alpha ) && ! empty( $alpha ) ) ? $alpha : Fusion_Color::new_color( $to_color )->alpha;
+						if ( 1 > $header_bg_alpha ) {
+							return Fusion_Color::new_color( $header_bg_color )->getNew( 'alpha', $header_bg_alpha )->toCSS( 'rgba' );
+						}
+						return Fusion_Color::new_color( $header_bg_color )->toCSS( 'hex' );
+					}
+				}
+			}
+
 			return get_post_meta( $post_id, 'pyre_' . $page_option, true );
 		}
 		return false;
 
+	}
+}
+
+if ( ! function_exists( 'fusion_get_term_option' ) ) {
+	/**
+	 * Get a term option.
+	 *
+	 * @since 2.0
+	 * @param string $option_name The option-name we want to get.
+	 * @param int    $term_id     The term-ID.
+	 * @return mixed
+	 */
+	function fusion_get_term_option( $option_name = null, $term_id = 0 ) {
+
+		if ( ! $term_id ) {
+			$queried_object = get_queried_object();
+			if ( is_object( $queried_object && isset( $queried_object->term_id ) ) ) {
+				$term_id = $queried_object->term_id;
+			}
+		}
+
+		// Get the term-meta.
+		$options = get_term_meta( intval( $term_id ), 'fusion_taxonomy_options', true );
+		$options = (array) maybe_unserialize( $options );
+
+		// Get the value from term options.
+		if ( isset( $options[ $option_name ] ) && ! empty( $options[ $option_name ] ) && 'default' !== $options[ $option_name ] ) {
+			return $options[ $option_name ];
+		}
+		return null;
 	}
 }
 
@@ -84,7 +259,7 @@ if ( ! function_exists( 'fusion_get_mismatch_option' ) ) {
 		if ( $theme_option && $page_option && $post_id ) {
 			$page_option  = strtolower( fusion_get_page_option( $page_option, $post_id ) );
 			$theme_option = strtolower( fusion_library()->get_option( $theme_option ) );
-			$theme_option = ( 1 == $theme_option ) ? 0 : 1;
+			$theme_option = ( 1 == $theme_option ) ? 0 : 1; // phpcs:ignore WordPress.PHP.StrictComparisons
 
 			if ( 'default' !== $page_option && ! empty( $page_option ) ) {
 				return $page_option;
@@ -108,7 +283,8 @@ if ( ! function_exists( 'fusion_render_rich_snippets_for_pages' ) ) {
 	function fusion_render_rich_snippets_for_pages( $title_tag = true, $author_tag = true, $updated_tag = true ) {
 		ob_start();
 		include wp_normalize_path( locate_template( 'templates/pages-rich-snippets.php' ) );
-		return ob_get_clean();
+		$rich_snippets = ob_get_clean();
+		return str_replace( [ "\t", "\n", "\r", "\0", "\x0B" ], '', $rich_snippets );
 	}
 }
 
@@ -120,33 +296,54 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 	 * @param string $settings HTML markup to display the date and post format box.
 	 * @return  string
 	 */
-	function fusion_render_post_metadata( $layout, $settings = array() ) {
+	function fusion_render_post_metadata( $layout, $settings = [] ) {
 
 		$html     = '';
 		$author   = '';
 		$date     = '';
 		$metadata = '';
 
-		$settings = ( is_array( $settings ) ) ? $settings : array();
+		$settings = ( is_array( $settings ) ) ? $settings : [];
 
-		$default_settings = array(
-			'post_meta'          => fusion_library()->get_option( 'post_meta' ),
-			'post_meta_author'   => fusion_library()->get_option( 'post_meta_author' ),
-			'post_meta_date'     => fusion_library()->get_option( 'post_meta_date' ),
-			'post_meta_cats'     => fusion_library()->get_option( 'post_meta_cats' ),
-			'post_meta_tags'     => fusion_library()->get_option( 'post_meta_tags' ),
-			'post_meta_comments' => fusion_library()->get_option( 'post_meta_comments' ),
-		);
+		if ( is_search() ) {
+			$search_meta = array_flip( fusion_library()->get_option( 'search_meta' ) );
 
-		$settings = wp_parse_args( $settings, $default_settings );
+			$default_settings = [
+				'post_meta'          => empty( $search_meta ) ? false : true,
+				'post_meta_author'   => isset( $search_meta['author'] ),
+				'post_meta_date'     => isset( $search_meta['date'] ),
+				'post_meta_cats'     => isset( $search_meta['categories'] ),
+				'post_meta_tags'     => isset( $search_meta['tags'] ),
+				'post_meta_comments' => isset( $search_meta['comments'] ),
+				'post_meta_type'     => isset( $search_meta['post_type'] ),
+			];
+		} else {
+			$default_settings = [
+				'post_meta'          => fusion_library()->get_option( 'post_meta' ),
+				'post_meta_author'   => fusion_library()->get_option( 'post_meta_author' ),
+				'post_meta_date'     => fusion_library()->get_option( 'post_meta_date' ),
+				'post_meta_cats'     => fusion_library()->get_option( 'post_meta_cats' ),
+				'post_meta_tags'     => fusion_library()->get_option( 'post_meta_tags' ),
+				'post_meta_comments' => fusion_library()->get_option( 'post_meta_comments' ),
+				'post_meta_type'     => false,
+			];
+		}
+
+		$settings  = wp_parse_args( $settings, $default_settings );
 		$post_meta = get_post_meta( get_queried_object_id(), 'pyre_post_meta', true );
 
 		// Check if meta data is enabled.
 		if ( ( $settings['post_meta'] && 'no' !== $post_meta ) || ( ! $settings['post_meta'] && 'yes' === $post_meta ) ) {
 
 			// For alternate, grid and timeline layouts return empty single-line-meta if all meta data for that position is disabled.
-			if ( in_array( $layout, array( 'alternate', 'grid_timeline' ), true ) && ! $settings['post_meta_author'] && ! $settings['post_meta_date'] && ! $settings['post_meta_cats'] && ! $settings['post_meta_tags'] && ! $settings['post_meta_comments'] ) {
+			if ( in_array( $layout, [ 'alternate', 'grid_timeline' ], true ) && ! $settings['post_meta_author'] && ! $settings['post_meta_date'] && ! $settings['post_meta_cats'] && ! $settings['post_meta_tags'] && ! $settings['post_meta_comments'] && ! $settings['post_meta_type'] ) {
 				return '';
+			}
+
+			// Render post type meta data.
+			if ( $settings['post_meta_type'] ) {
+				$metadata .= '<span class="fusion-meta-post-type">' . esc_html( ucwords( get_post_type() ) ) . '</span>';
+				$metadata .= '<span class="fusion-inline-sep">|</span>';
 			}
 
 			// Render author meta data.
@@ -158,10 +355,10 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 				// Check if rich snippets are enabled.
 				if ( fusion_library()->get_option( 'disable_date_rich_snippet_pages' ) && fusion_library()->get_option( 'disable_rich_snippet_author' ) ) {
 					/* translators: The author. */
-					$metadata .= sprintf( esc_attr__( 'By %s', 'Avada' ), '<span class="vcard"><span class="fn">' . $author_post_link . '</span></span>' );
+					$metadata .= sprintf( esc_html__( 'By %s', 'fusion-builder' ), '<span class="vcard"><span class="fn">' . $author_post_link . '</span></span>' );
 				} else {
 					/* translators: The author. */
-					$metadata .= sprintf( esc_attr__( 'By %s', 'Avada' ), '<span>' . $author_post_link . '</span>' );
+					$metadata .= sprintf( esc_html__( 'By %s', 'fusion-builder' ), '<span>' . $author_post_link . '</span>' );
 				}
 				$metadata .= '<span class="fusion-inline-sep">|</span>';
 			} else { // If author meta data won't be visible, render just the invisible author rich snippet.
@@ -173,8 +370,8 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 				$metadata .= fusion_render_rich_snippets_for_pages( false, false, true );
 
 				$formatted_date = get_the_time( fusion_library()->get_option( 'date_format' ) );
-				$date_markup = '<span>' . $formatted_date . '</span><span class="fusion-inline-sep">|</span>';
-				$metadata .= apply_filters( 'fusion_post_metadata_date', $date_markup, $formatted_date );
+				$date_markup    = '<span>' . $formatted_date . '</span><span class="fusion-inline-sep">|</span>';
+				$metadata      .= apply_filters( 'fusion_post_metadata_date', $date_markup, $formatted_date );
 			} else {
 				$date .= fusion_render_rich_snippets_for_pages( false, false, true );
 			}
@@ -182,13 +379,24 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 			// Render rest of meta data.
 			// Render categories.
 			if ( $settings['post_meta_cats'] ) {
+				$post_type  = get_post_type();
+				$taxonomies = [
+					'avada_portfolio' => 'portfolio_category',
+					'avada_faq'       => 'faq_category',
+					'product'         => 'product_cat',
+					'tribe_events'    => 'tribe_events_cat',
+				];
 				ob_start();
-				the_category( ', ' );
+				if ( 'post' === $post_type ) {
+					the_category( ', ' );
+				} elseif ( 'page' !== $post_type && isset( $taxonomies[ $post_type ] ) ) {
+					the_terms( get_the_ID(), $taxonomies[ $post_type ], '', ', ' );
+				}
 				$categories = ob_get_clean();
 
 				if ( $categories ) {
 					/* translators: The categories list. */
-					$metadata .= ( $settings['post_meta_tags'] ) ? sprintf( esc_html__( 'Categories: %s', 'Avada' ), $categories ) : $categories;
+					$metadata .= ( $settings['post_meta_tags'] ) ? sprintf( esc_html__( 'Categories: %s', 'fusion-builder' ), $categories ) : $categories;
 					$metadata .= '<span class="fusion-inline-sep">|</span>';
 				}
 			}
@@ -201,15 +409,15 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 
 				if ( $tags ) {
 					/* translators: The tags list. */
-					$metadata .= '<span class="meta-tags">' . sprintf( esc_html__( 'Tags: %s', 'Avada' ), $tags ) . '</span><span class="fusion-inline-sep">|</span>';
+					$metadata .= '<span class="meta-tags">' . sprintf( esc_html__( 'Tags: %s', 'fusion-builder' ), $tags ) . '</span><span class="fusion-inline-sep">|</span>';
 				}
 			}
 
 			// Render comments.
 			if ( $settings['post_meta_comments'] && 'grid_timeline' !== $layout ) {
 				ob_start();
-				comments_popup_link( esc_html__( '0 Comments', 'Avada' ), esc_html__( '1 Comment', 'Avada' ), esc_html__( '% Comments', 'Avada' ) );
-				$comments = ob_get_clean();
+				comments_popup_link( esc_html__( '0 Comments', 'fusion-builder' ), esc_html__( '1 Comment', 'fusion-builder' ), esc_html__( '% Comments', 'fusion-builder' ) );
+				$comments  = ob_get_clean();
 				$metadata .= '<span class="fusion-comments">' . $comments . '</span>';
 			}
 
@@ -219,7 +427,7 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 
 				if ( 'single' === $layout ) {
 					$html .= '<div class="fusion-meta-info"><div class="fusion-meta-info-wrapper">' . $metadata . '</div></div>';
-				} elseif ( in_array( $layout, array( 'alternate', 'grid_timeline' ), true ) ) {
+				} elseif ( in_array( $layout, [ 'alternate', 'grid_timeline' ], true ) ) {
 					$html .= '<p class="fusion-single-line-meta">' . $metadata . '</p>';
 				} else {
 					$html .= '<div class="fusion-alignleft">' . $metadata . '</div>';
@@ -232,11 +440,11 @@ if ( ! function_exists( 'fusion_render_post_metadata' ) ) {
 			if ( fusion_library()->get_option( 'disable_date_rich_snippet_pages' ) ) {
 				$html .= fusion_render_rich_snippets_for_pages( false );
 			}
-		}// End if().
+		}
 
 		return apply_filters( 'fusion_post_metadata_markup', $html );
 	}
-}// End if().
+}
 
 if ( ! function_exists( 'fusion_calc_color_brightness' ) ) {
 	/**
@@ -247,17 +455,20 @@ if ( ! function_exists( 'fusion_calc_color_brightness' ) ) {
 	 */
 	function fusion_calc_color_brightness( $color ) {
 
-		if ( in_array( strtolower( $color ), array( 'black', 'navy', 'purple', 'maroon', 'indigo', 'darkslategray', 'darkslateblue', 'darkolivegreen', 'darkgreen', 'darkblue' ) ) ) {
-			$brightness_level = 0;
-		} elseif ( strpos( $color, '#' ) === 0 ) {
-			$color = fusion_hex2rgb( $color );
+		$brightness_level = 150;
 
+		if ( in_array( strtolower( $color ), [ 'black', 'navy', 'purple', 'maroon', 'indigo', 'darkslategray', 'darkslateblue', 'darkolivegreen', 'darkgreen', 'darkblue' ], true ) ) {
+
+			$brightness_level = 0;
+
+		} elseif ( 0 === strpos( $color, '#' ) || 0 === strpos( $color, 'rgb' ) || ctype_xdigit( $color ) ) {
+
+			$color            = fusion_hex2rgb( $color );
 			$brightness_level = sqrt( pow( $color[0], 2 ) * 0.299 + pow( $color[1], 2 ) * 0.587 + pow( $color[2], 2 ) * 0.114 );
-		} else {
-			$brightness_level = 150;
+
 		}
 
-		return $brightness_level;
+		return (int) round( $brightness_level );
 	}
 }
 
@@ -276,10 +487,10 @@ if ( ! function_exists( 'fusion_hex2rgb' ) ) {
 			$rgb_part = rtrim( $rgb_part, ')' );
 			$rgb_part = explode( ',', $rgb_part );
 
-			$rgb = array( $rgb_part[0], $rgb_part[1], $rgb_part[2], $rgb_part[3] );
+			$rgb = [ $rgb_part[0], $rgb_part[1], $rgb_part[2], $rgb_part[3] ];
 
 		} elseif ( 'transparent' === $hex ) {
-			$rgb = array( '255', '255', '255', '0' );
+			$rgb = [ '255', '255', '255', '0' ];
 		} else {
 
 			$hex = str_replace( '#', '', $hex );
@@ -293,12 +504,12 @@ if ( ! function_exists( 'fusion_hex2rgb' ) ) {
 				$g = hexdec( substr( $hex, 2, 2 ) );
 				$b = hexdec( substr( $hex, 4, 2 ) );
 			}
-			$rgb = array( $r, $g, $b );
+			$rgb = [ $r, $g, $b ];
 		}
 
 		return $rgb; // Returns an array with the rgb values.
 	}
-}// End if().
+}
 
 if ( ! function_exists( 'fusion_render_first_featured_image_markup' ) ) {
 	/**
@@ -319,14 +530,17 @@ if ( ! function_exists( 'fusion_render_first_featured_image_markup' ) ) {
 	 * @param  aray    $attributes                Arry with attributes that will be added to the wrapper.
 	 * @return string Full HTML markup of the first featured image.
 	 */
-	function fusion_render_first_featured_image_markup( $post_id, $post_featured_image_size = '', $post_permalink = '', $display_placeholder_image = false, $display_woo_price = false, $display_woo_buttons = false, $display_post_categories = 'default', $display_post_title = 'default', $type = '', $gallery_id = '', $display_rollover = 'yes', $display_woo_rating = false, $attributes = array() ) {
+	function fusion_render_first_featured_image_markup( $post_id, $post_featured_image_size = '', $post_permalink = '', $display_placeholder_image = false, $display_woo_price = false, $display_woo_buttons = false, $display_post_categories = 'default', $display_post_title = 'default', $type = '', $gallery_id = '', $display_rollover = 'yes', $display_woo_rating = false, $attributes = [] ) {
 		// Add a class for fixed image size, to restrict the image rollovers to the image width.
 		$image_size_class = ( 'full' !== $post_featured_image_size ) ? ' fusion-image-size-fixed' : '';
 		$image_size_class = ( ( ! has_post_thumbnail( $post_id ) && get_post_meta( $post_id, 'pyre_video', true ) ) || ( is_home() && 'blog-large' === $post_featured_image_size ) ) ? '' : $image_size_class;
 
 		ob_start();
-		/* include wp_normalize_path( locate_template( 'templates/featured-image-first.php' ) ); */
-		include wp_normalize_path( FUSION_LIBRARY_PATH . '/inc/templates/featured-image-first.php' );
+		/**
+		 * WIP
+		include wp_normalize_path( locate_template( 'templates/featured-image-first.php' ) );
+		*/
+		include FUSION_LIBRARY_PATH . '/inc/templates/featured-image-first.php';
 		return ob_get_clean();
 	}
 }
@@ -377,7 +591,7 @@ if ( ! function_exists( 'avada_featured_images_lightbox' ) ) {
 
 		return $html . '<div class="fusion-portfolio-gallery-hidden">' . $video . $featured_images . '</div>';
 	}
-}// End if().
+}
 
 if ( ! function_exists( 'avada_render_rollover' ) ) {
 	/**
@@ -394,7 +608,7 @@ if ( ! function_exists( 'avada_render_rollover' ) ) {
 	 * @return void
 	 */
 	function avada_render_rollover( $post_id, $post_permalink = '', $display_woo_price = false, $display_woo_buttons = false, $display_post_categories = 'default', $display_post_title = 'default', $gallery_id = '', $display_woo_rating = false ) {
-		include wp_normalize_path( FUSION_LIBRARY_PATH . '/inc/templates/rollover.php' );
+		include FUSION_LIBRARY_PATH . '/inc/templates/rollover.php';
 	}
 }
 
@@ -418,7 +632,7 @@ if ( ! function_exists( 'fusion_get_post_content' ) ) {
 		if ( 'blog' === $excerpt ) {
 
 			// Check if the content should be excerpted.
-			if ( 'excerpt' === strtolower( fusion_library()->get_option( 'content_length' ) ) ) {
+			if ( 'excerpt' === fusion_get_option( 'content_length' ) ) {
 				$content_excerpted = true;
 
 				// Get the excerpt length.
@@ -429,11 +643,25 @@ if ( ! function_exists( 'fusion_get_post_content' ) ) {
 			if ( fusion_library()->get_option( 'strip_html_excerpt' ) ) {
 				$strip_html = true;
 			}
+		} elseif ( 'search' === $excerpt ) {
+
+			// Check if the content should be excerpted.
+			if ( 'excerpt' === fusion_get_option( 'search_content_length' ) ) {
+				$content_excerpted = true;
+
+				// Get the excerpt length.
+				$excerpt_length = fusion_library()->get_option( 'search_excerpt_length' );
+			}
+
+			// Check if HTML should be stripped from contant.
+			if ( fusion_library()->get_option( 'search_strip_html_excerpt' ) ) {
+				$strip_html = true;
+			}
 		} elseif ( 'portfolio' === $excerpt ) {
 			// Check if the content should be excerpted.
 			$portfolio_excerpt_length = fusion_get_portfolio_excerpt_length( $page_id );
 			if ( false !== $portfolio_excerpt_length ) {
-				$excerpt_length = $portfolio_excerpt_length;
+				$excerpt_length    = $portfolio_excerpt_length;
 				$content_excerpted = true;
 			}
 
@@ -445,6 +673,8 @@ if ( ! function_exists( 'fusion_get_post_content' ) ) {
 			$content_excerpted = true;
 		}
 
+		$content_excerpted = apply_filters( 'fusion_post_content_is_excerpted', $content_excerpted );
+
 		// Sermon specific additional content.
 		if ( 'wpfc_sermon' === get_post_type( get_the_ID() ) && class_exists( 'Avada' ) ) {
 			return Avada()->sermon_manager->get_sermon_content( true );
@@ -452,7 +682,7 @@ if ( ! function_exists( 'fusion_get_post_content' ) ) {
 
 		// Return excerpted content.
 		if ( $content_excerpted ) {
-			return fusion_get_post_content_excerpt( $excerpt_length, $strip_html );
+			return fusion_get_post_content_excerpt( $excerpt_length, $strip_html, $page_id );
 		}
 
 		// Return full content.
@@ -461,7 +691,7 @@ if ( ! function_exists( 'fusion_get_post_content' ) ) {
 		return ob_get_clean();
 
 	}
-}// End if().
+}
 
 if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 	/**
@@ -469,9 +699,10 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 	 *
 	 * @param  string  $limit      Maximum number of words or chars to be displayed in excerpt.
 	 * @param  boolean $strip_html Set to TRUE to strip HTML tags from excerpt.
+	 * @param  string  $page_id    The id of the current page or post.
 	 * @return string               The custom excerpt.
 	 **/
-	function fusion_get_post_content_excerpt( $limit = 285, $strip_html ) {
+	function fusion_get_post_content_excerpt( $limit = 285, $strip_html, $page_id = '' ) {
 		global $more;
 
 		// Init variables, cast to correct types.
@@ -486,7 +717,11 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 			return $content;
 		}
 
-		$post = get_post( get_the_ID() );
+		if ( ! $page_id ) {
+			$page_id = get_the_ID();
+		}
+
+		$post = get_post( $page_id );
 
 		// Filter to set the default [...] read more to something arbritary.
 		$read_more_text = apply_filters( 'fusion_blog_read_more_excerpt', '&#91;...&#93;' );
@@ -503,7 +738,7 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 
 		// Construct the content.
 		// Posts having a custom excerpt.
-		if ( has_excerpt() ) {
+		if ( has_excerpt( $post->ID ) ) {
 			// WooCommerce products should use short description field, which is a custom excerpt.
 			if ( 'product' === $post->post_type ) {
 				$content = do_shortcode( $post->post_excerpt );
@@ -513,7 +748,7 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 					$content = wp_strip_all_tags( $content, '<p>' );
 				}
 			} else { // All other posts with custom excerpt.
-				$content = '<p>' . do_shortcode( get_the_excerpt() ) . '</p>';
+				$content = '<p>' . do_shortcode( get_the_excerpt( $post->ID ) ) . '</p>';
 			}
 		} else { // All other posts (with and without <!--more--> tag in the contents).
 			// HTML tags should be stripped.
@@ -540,19 +775,19 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 					$content = do_shortcode( $content );
 				}
 			}
-		}// End if().
+		}
 
 		// Limit the contents to the $limit length.
-		if ( ! has_excerpt() || 'product' === $post->post_type ) {
+		if ( ! has_excerpt( $post->ID ) || 'product' === $post->post_type ) {
 			// Check if the excerpting should be char or word based.
-			if ( 'Characters' === fusion_library()->get_option( 'excerpt_base' ) ) {
-				$content = mb_substr( $content, 0, $limit );
+			if ( 'characters' === fusion_get_option( 'excerpt_base' ) ) {
+				$content  = mb_substr( $content, 0, $limit );
 				$content .= $read_more;
 			} else { // Excerpting is word based.
 				$content = explode( ' ', $content, $limit + 1 );
 				if ( count( $content ) > $limit ) {
 					array_pop( $content );
-					$content = implode( ' ', $content );
+					$content  = implode( ' ', $content );
 					$content .= $read_more;
 
 				} else {
@@ -572,7 +807,7 @@ if ( ! function_exists( 'fusion_get_post_content_excerpt' ) ) {
 
 		return $content;
 	}
-}// End if().
+}
 
 if ( ! function_exists( 'fusion_extract_shortcode_contents' ) ) {
 	/**
@@ -586,16 +821,16 @@ if ( ! function_exists( 'fusion_extract_shortcode_contents' ) ) {
 		global $shortcode_tags;
 
 		// Setup the array of all registered shortcodes.
-		$shortcodes = array_keys( $shortcode_tags );
-		$no_space_shortcodes = array( 'fusion_dropcap' );
-		$omitted_shortcodes  = array( 'fusion_code', 'fusion_imageframe', 'fusion_slide', 'fusion_syntax_highlighter' );
+		$shortcodes          = array_keys( $shortcode_tags );
+		$no_space_shortcodes = [ 'fusion_dropcap' ];
+		$omitted_shortcodes  = [ 'fusion_code', 'fusion_imageframe', 'fusion_slide', 'fusion_syntax_highlighter' ];
 
 		// Extract contents from all shortcodes recursively.
-		if ( in_array( $m[2], $shortcodes ) && ! in_array( $m[2], $omitted_shortcodes ) ) {
+		if ( in_array( $m[2], $shortcodes, true ) && ! in_array( $m[2], $omitted_shortcodes, true ) ) {
 			$pattern = get_shortcode_regex();
 			// Add space to the excerpt by shortcode, except for those who should stick together, like dropcap.
 			$space = ' ';
-			if ( in_array( $m[2], $no_space_shortcodes ) ) {
+			if ( in_array( $m[2], $no_space_shortcodes, true ) ) {
 				$space = '';
 			}
 			$content = preg_replace_callback( "/$pattern/s", 'fusion_extract_shortcode_contents', rtrim( $m[5] ) . $space );
@@ -610,7 +845,7 @@ if ( ! function_exists( 'fusion_extract_shortcode_contents' ) ) {
 
 		return $m[1] . $m[6];
 	}
-}// End if().
+}
 
 /**
  * Returns the excerpt length for portfolio posts.
@@ -629,7 +864,7 @@ function fusion_get_portfolio_excerpt_length( $page_id = '' ) {
 		} else {
 			$excerpt_length = fusion_library()->get_option( 'portfolio_archive_excerpt_length' );
 		}
-	} elseif ( ! $page_id && 'excerpt' === fusion_library()->get_option( 'portfolio_archive_content_length' ) ) {
+	} elseif ( ! $page_id && 'excerpt' === fusion_get_option( 'portfolio_archive_content_length' ) ) {
 		$excerpt_length = fusion_library()->get_option( 'portfolio_archive_excerpt_length' );
 	}
 
@@ -643,13 +878,13 @@ if ( ! function_exists( 'fusion_link_pages' ) ) {
 	 */
 	function fusion_link_pages() {
 		wp_link_pages(
-			array(
-				'before'      => '<div class="page-links pagination"><span class="page-links-title">' . esc_html__( 'Pages:', 'Avada' ) . '</span>',
+			[
+				'before'      => '<div class="page-links pagination"><span class="page-links-title">' . esc_html__( 'Pages:', 'fusion-builder' ) . '</span>',
 				'after'       => '</div>',
 				'link_before' => '<span class="page-number">',
 				'link_after'  => '</span>',
 				'pagelink'    => '%',
-			)
+			]
 		);
 	}
 }
@@ -666,7 +901,7 @@ if ( ! function_exists( 'fusion_link_pages_link' ) ) {
 	function fusion_link_pages_link( $link, $i ) {
 		global $page;
 
-		if ( $i == $page ) {
+		if ( $i == $page ) { // phpcs:ignore WordPress.PHP.StrictComparisons
 			$link = '<span class="current">' . $i . '</span>';
 		}
 
@@ -692,8 +927,8 @@ if ( ! function_exists( 'fusion_cached_query' ) ) {
 			$args .= '&fusion_lang=' . Fusion_Multilingual::get_active_language();
 		}
 
-		$query_id   = md5( maybe_serialize( $args ) );
-		$query = wp_cache_get( $query_id, 'fusion_library' );
+		$query_id = md5( maybe_serialize( $args ) );
+		$query    = wp_cache_get( $query_id, 'fusion_library' );
 		if ( false === $query ) {
 			$query = new WP_Query( $args );
 			wp_cache_set( $query_id, $query, 'fusion_library' );
@@ -791,7 +1026,7 @@ function fusion_array_replace_recursive_recurse( $array, $array1 ) {
 	foreach ( $array1 as $key => $value ) {
 		// Create new key in $array, if it is empty or not an array.
 		if ( ! isset( $array[ $key ] ) || ( isset( $array[ $key ] ) && ! is_array( $array[ $key ] ) ) ) {
-			$array[ $key ] = array();
+			$array[ $key ] = [];
 		}
 		// Overwrite the value in the base array.
 		if ( is_array( $value ) ) {
@@ -822,71 +1057,107 @@ if ( ! function_exists( 'fusion_pagination' ) ) {
 	 * Number based pagination.
 	 *
 	 * @since 1.3
-	 * @param string|int $pages           Maximum number of pages.
+	 * @param string|int $max_pages       Maximum number of pages.
 	 * @param integer    $range           How many page numbers to display to either side of the current page.
 	 * @param string     $current_query   The current query.
 	 * @param bool       $infinite_scroll Whether we want infinite scroll or not.
 	 * @param bool       $is_element      Whether pagination is definitely only set for a specific element.
 	 * @return string                     The pagination markup.
 	 */
-	function fusion_pagination( $pages = '', $range = 1, $current_query = '', $infinite_scroll = false, $is_element = false ) {
-		global $paged, $wp_query;
+	function fusion_pagination( $max_pages = '', $range = 1, $current_query = '', $infinite_scroll = false, $is_element = false ) {
+		global $paged, $wp_query, $fusion_settings;
+
+		$range       = apply_filters( 'fusion_pagination_size', $range );
+		$start_range = apply_filters( 'fusion_pagination_start_end_size', $fusion_settings->get( 'pagination_start_end_range' ) );
+		$end_range   = apply_filters( 'fusion_pagination_start_end_size', $fusion_settings->get( 'pagination_start_end_range' ) );
 
 		if ( '' === $current_query ) {
-			$paged_custom = ( empty( $paged ) ) ? 1 : $paged;
+			$current_page = ( empty( $paged ) ) ? 1 : $paged;
 		} else {
-			$paged_custom = $current_query->query_vars['paged'];
+			$current_page = $current_query->query_vars['paged'];
 		}
 
-		if ( '' === $pages ) {
+		if ( '' === $max_pages ) {
 			if ( '' === $current_query ) {
-				$pages = $wp_query->max_num_pages;
-				$pages = ( ! $pages ) ? 1 : $pages;
+				$max_pages = $wp_query->max_num_pages;
+				$max_pages = ( ! $max_pages ) ? 1 : $max_pages;
 			} else {
-				$pages = $current_query->max_num_pages;
+				$max_pages = $current_query->max_num_pages;
 			}
 		}
-		$pages        = intval( $pages );
-		$paged_custom = intval( $paged_custom );
+		$max_pages    = intval( $max_pages );
+		$current_page = intval( $current_page );
 		$output       = '';
 
-		if ( 1 !== $pages ) {
-			if ( $infinite_scroll || ( ! $is_element && ( 'Pagination' !== Avada()->settings->get( 'blog_pagination_type' ) && ( is_home() || is_search() || ( 'post' === get_post_type() && ( is_author() || is_archive() ) ) ) ) || ( 'pagination' !== Avada()->settings->get( 'portfolio_archive_pagination_type' ) && ( is_post_type_archive( 'avada_portfolio' ) || is_tax( 'portfolio_category' ) || is_tax( 'portfolio_skills' ) || is_tax( 'portfolio_tags' ) ) ) ) ) {
+		if ( 1 !== $max_pages ) {
+			if ( $infinite_scroll || ( ! $is_element && ( ( 'pagination' !== $fusion_settings->get( 'blog_pagination_type' ) && ( is_home() || ( 'post' === get_post_type() && ( is_author() || is_archive() ) ) ) ) || ( 'pagination' !== fusion_get_option( 'search_pagination_type' ) && is_search() ) || ( 'pagination' !== $fusion_settings->get( 'portfolio_archive_pagination_type' ) && ( is_post_type_archive( 'avada_portfolio' ) || is_tax( 'portfolio_category' ) || is_tax( 'portfolio_skills' ) || is_tax( 'portfolio_tags' ) ) ) ) ) ) {
 				$output .= '<div class="fusion-infinite-scroll-trigger"></div>';
 				$output .= '<div class="pagination infinite-scroll clearfix" style="display:none;">';
 			} else {
 				$output .= '<div class="pagination clearfix">';
 			}
 
-			if ( 1 < $paged_custom ) {
-				$output .= '<a class="pagination-prev" href="' . esc_url( get_pagenum_link( $paged - 1 ) ) . '">';
-					$output .= '<span class="page-prev"></span>';
-					$output .= '<span class="page-text">' . esc_html__( 'Previous', 'Avada' ) . '</span>';
+			$start = $current_page - $range;
+			$end   = $current_page + $range;
+			if ( 0 >= $start ) {
+				$start = ( 0 < $current_page - 1 ) ? $current_page - 1 : 1;
+			}
+
+			if ( $max_pages < $end ) {
+				$end = $max_pages;
+			}
+
+			if ( 1 < $current_page ) {
+				$output .= '<a class="pagination-prev" href="' . esc_url( get_pagenum_link( $current_page - 1 ) ) . '">';
+				$output .= '<span class="page-prev"></span>';
+				$output .= '<span class="page-text">' . esc_html__( 'Previous', 'fusion-builder' ) . '</span>';
 				$output .= '</a>';
-			}
 
-			$start = $paged_custom - $range;
-			$end   = $paged_custom + $range;
-			if ( 0 >= $paged_custom - $range ) {
-				$start = ( 0 < $paged_custom - 1 ) ? $paged_custom - 1 : 1;
-			}
+				if ( 0 < $start_range ) {
+					if ( $start_range >= $start ) {
+						$start_range = $start - 1;
+					}
 
-			if ( $pages < $paged_custom + $range ) {
-				$end = $pages;
+					for ( $i = 1; $i <= $start_range; $i++ ) {
+						$output .= '<a href="' . esc_url( get_pagenum_link( $i ) ) . '" class="inactive">' . absint( $i ) . '</a>';
+					}
+
+					if ( 0 < $start_range && $start_range < $start - 1 ) {
+						$output .= '<span class="pagination-dots paginations-dots-start">&middot;&middot;&middot;</span>';
+					}
+				}
 			}
 
 			for ( $i = $start; $i <= $end; $i++ ) {
-				if ( $paged_custom === $i ) {
+				if ( $current_page === $i ) {
 					$output .= '<span class="current">' . absint( $i ) . '</span>';
 				} else {
 					$output .= '<a href="' . esc_url( get_pagenum_link( $i ) ) . '" class="inactive">' . absint( $i ) . '</a>';
 				}
 			}
 
-			if ( $paged_custom < $pages ) {
-				$output .= '<a class="pagination-next" href="' . esc_url( get_pagenum_link( $paged_custom + 1 ) ) . '">';
-					$output .= '<span class="page-text">' . esc_html__( 'Next', 'Avada' ) . '</span>';
-					$output .= '<span class="page-next"></span>';
+			if ( $current_page < $max_pages ) {
+
+				if ( 0 < $end_range ) {
+
+					if ( $max_pages - $end_range <= $end ) {
+						$end_range = $max_pages - $end;
+					}
+
+					$end_range--;
+
+					if ( $end + 1 < $max_pages - $end_range ) {
+						$output .= '<span class="pagination-dots paginations-dots-end">&middot;&middot;&middot;</span>';
+					}
+
+					for ( $i = $max_pages - $end_range; $i <= $max_pages; $i++ ) {
+						$output .= '<a href="' . esc_url( get_pagenum_link( $i ) ) . '" class="inactive">' . absint( $i ) . '</a>';
+					}
+				}
+
+				$output .= '<a class="pagination-next" href="' . esc_url( get_pagenum_link( $current_page + 1 ) ) . '">';
+				$output .= '<span class="page-text">' . esc_html__( 'Next', 'fusion-builder' ) . '</span>';
+				$output .= '<span class="page-next"></span>';
 				$output .= '</a>';
 			}
 
@@ -897,8 +1168,243 @@ if ( ! function_exists( 'fusion_pagination' ) ) {
 		return $output;
 
 		// Needed for Theme check.
-		ob_start();
-		posts_nav_link();
-		ob_get_clean();
+		ob_start(); // phpcs:ignore Squiz.PHP.NonExecutableCode.Unreachable
+		posts_nav_link(); // phpcs:ignore Squiz.PHP.NonExecutableCode.Unreachable
+		ob_get_clean(); // phpcs:ignore Squiz.PHP.NonExecutableCode.Unreachable
 	}
-} // End if().
+}
+
+if ( ! function_exists( 'fusion_get_referer' ) ) {
+	/**
+	 * Gets the HTTP referer.
+	 *
+	 * @since 1.7
+	 * @return string|false
+	 */
+	function fusion_get_referer() {
+		$referer = wp_get_referer();
+		if ( ! $referer ) {
+			$referer = wp_get_raw_referer();
+		}
+		return $referer;
+	}
+}
+
+if ( ! function_exists( 'fusion_is_color_transparent' ) ) {
+	/**
+	 * Figure out if a color is transparent or not.
+	 *
+	 * @since 2.0
+	 * @param string $color The color we want to check.
+	 * @return bool
+	 */
+	function fusion_is_color_transparent( $color ) {
+		$color = trim( $color );
+		if ( 'transparent' === $color ) {
+			return true;
+		}
+		return ( 0 === Fusion_Color::new_color( $color )->alpha );
+	}
+}
+
+if ( ! function_exists( 'fusion_the_admin_font_async' ) ) {
+	/**
+	 * Adds the font used for the admin UI asyncronously.
+	 *
+	 * @since 2.0
+	 * @return void
+	 */
+	function fusion_the_admin_font_async() {
+		echo '<style>';
+		include FUSION_LIBRARY_PATH . '/inc/fusion-app/css/noto-sans.css';
+		echo '</style>';    
+	}
+}
+
+
+if ( ! function_exists( 'fusion_doing_ajax' ) ) {
+	/**
+	 * Wrapper function for wp_doing_ajax, which was introduced in WP 4.7.
+	 *
+	 * @since 5.1.5
+	 */
+	function fusion_doing_ajax() {
+		if ( function_exists( 'wp_doing_ajax' ) ) {
+			return wp_doing_ajax();
+		}
+
+		return defined( 'DOING_AJAX' ) && DOING_AJAX;
+	}
+}
+
+if ( ! function_exists( 'fusion_is_shop' ) ) {
+	/**
+	 * Returns true when viewing the product type archive (shop).
+	 *
+	 * @since 1.8
+	 * @param integer/string $current_page_id Post/Page ID.
+	 * @return bool Theme option or page option value.
+	 */
+	function fusion_is_shop( $current_page_id ) {
+		$current_page_id      = (int) $current_page_id;
+		$front_page_id        = (int) get_option( 'page_on_front' );
+		$shop_page_id         = (int) apply_filters( 'woocommerce_get_shop_page_id', get_option( 'woocommerce_shop_page_id' ) );
+		$is_static_front_page = 'page' === get_option( 'show_on_front' );
+
+		if ( ( $is_static_front_page && $front_page_id === $current_page_id ) || is_null( get_queried_object() ) || ( class_exists( 'BuddyPress' ) && bp_is_user() ) ) {
+			$is_shop_page = ( $current_page_id === $shop_page_id ) ? true : false;
+		} else {
+			$is_shop_page = function_exists( 'is_shop' ) && is_shop();
+		}
+
+		return $is_shop_page;
+	}
+}
+
+if ( ! function_exists( 'fusion_get_google_maps_language_code' ) ) {
+	/**
+	 * Returns the correct Google maps language code.
+	 *
+	 * @since 1.9
+	 * @return string The correct Google maps language code.
+	 */
+	function fusion_get_google_maps_language_code() {
+		$lang_codes  = [ 'en_Au', 'en_GB', 'pt_BR', 'pt_PT', 'zh_CN', 'zh_TW' ];
+		$lang_locale = get_locale();
+		$lang_code   = in_array( $lang_locale, $lang_codes, true ) ? str_replace( '_', '-', $lang_locale ) : substr( get_locale(), 0, 2 );
+
+		return $lang_code;
+	}
+}
+
+if ( ! function_exists( 'wp_body_open' ) ) {
+	/**
+	 * Polyfill for the WP wp_body_open function added in WP 5.2.
+	 *
+	 * @since 2.0
+	 * @return void
+	 */
+	function wp_body_open() {
+		do_action( 'wp_body_open' );
+	}
+}
+
+if ( ! function_exists( 'fusion_get_social_icons_class' ) ) {
+	/**
+	 * Return the social icons object.
+	 *
+	 * @since 1.9.2
+	 * @return Fusion_Social_Icons
+	 */
+	function fusion_get_social_icons_class() {
+		global $social_icons;
+
+		if ( ! $social_icons ) {
+			$social_icons = new Fusion_Social_Icons();
+		}
+
+		return $social_icons;
+	}
+}
+
+if ( ! function_exists( 'fusion_reset_all_caches' ) ) {
+	/**
+	 * Reset all Fusion Caches.
+	 *
+	 * @since 1.9.2
+	 * @param array $delete_cache An array of caches to delete.
+	 * @return void
+	 */
+	function fusion_reset_all_caches( $delete_cache = [] ) {
+		// Reset fusion-caches.
+		if ( ! class_exists( 'Fusion_Cache' ) ) {
+			require_once FUSION_LIBRARY_PATH . '/inc/class-fusion-cache.php';
+		}
+
+		$fusion_cache = new Fusion_Cache();
+		$fusion_cache->reset_all_caches( $delete_cache );
+
+		wp_cache_flush();
+	}
+}
+
+if ( ! function_exists( 'fusion_is_plugin_activated' ) ) {
+	/**
+	 * Reset all Fusion Caches.
+	 *
+	 * @since 1.9.2
+	 * @param string $plugin Name of the plugin that should be checked.
+	 * @return bool If plugin is active or not.
+	 */
+	function fusion_is_plugin_activated( $plugin ) {
+		return in_array( $plugin, (array) get_option( 'active_plugins', [] ), true ) || is_plugin_active_for_network( $plugin );
+	}
+}
+
+if ( ! function_exists( 'fusion_encode_input' ) ) {
+	/**
+	 * Encode function wrapper.
+	 *
+	 * @since 1.9.2
+	 * @param string $input Input that should be encoded.
+	 * @param string $method The encoding mathod.
+	 * @return string Encoded input.
+	 */
+	function fusion_encode_input( $input, $method = 'base64' ) {
+		$method = in_array( $method, [ 'base64', 'utf8' ], true ) ? $method . '_encode' : $method;
+		return $method( $input );
+	}
+}
+
+if ( ! function_exists( 'fusion_decode_input' ) ) {
+	/**
+	 * Decode function wrapper.
+	 *
+	 * @since 1.9.2
+	 * @param string $input Input that should be decoded.
+	 * @param string $method The decoding mathod.
+	 * @return string Decoded input.
+	 */
+	function fusion_decode_input( $input, $method = 'base64' ) {
+		$method = in_array( $method, [ 'base64', 'utf8' ], true ) ? $method . '_decode' : $method;
+		return $method( $input );
+	}
+}
+
+if ( ! function_exists( 'fusion_decode_if_needed' ) ) {
+	/**
+	 * Check if input needs decoded and do so.
+	 *
+	 * @since 1.9.2
+	 * @param string $input Input that should be decoded.
+	 * @param string $method The decoding mathod.
+	 * @return string Decoded input.
+	 */
+	function fusion_decode_if_needed( $input, $method = 'base64' ) {
+		$encode = $method;
+		$decode = $method;
+		if ( in_array( $method, [ 'base64', 'utf8' ], true ) ) {
+			$encode .= '_encode';
+			$decode .= '_decode';
+		}
+
+		if ( fusion_encode_input( fusion_decode_input( $input, $decode ), $encode ) === $input ) {
+			$input = fusion_decode_input( $input, $decode );
+		}
+
+		return $input;
+	}
+}
+
+if ( ! function_exists( 'fusion_should_defer_styles_loading' ) ) {
+	/**
+	 * Figure out if we want to defer loading styles to the footer or not.
+	 *
+	 * @since 2.0
+	 * @return bool
+	 */
+	function fusion_should_defer_styles_loading() {
+		$is_builder = ( function_exists( 'fusion_is_preview_frame' ) && fusion_is_preview_frame() ) || ( function_exists( 'fusion_is_builder_frame' ) && fusion_is_builder_frame() );
+		return $is_builder ? false : (bool) fusion_get_option( 'defer_styles' );
+	}
+}

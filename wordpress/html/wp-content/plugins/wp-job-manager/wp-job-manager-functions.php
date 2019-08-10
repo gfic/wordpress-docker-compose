@@ -1,4 +1,12 @@
 <?php
+/**
+ * Global WP Job Manager functions.
+ *
+ * New global functions are discouraged whenever possible.
+ *
+ * @package wp-job-manager
+ */
+
 if ( ! function_exists( 'get_job_listings' ) ) :
 	/**
 	 * Queries job listings with certain criteria and returns them.
@@ -163,12 +171,13 @@ if ( ! function_exists( 'get_job_listings' ) ) :
 			$cached_query_posts   = get_transient( $query_args_hash );
 			if ( is_string( $cached_query_posts ) ) {
 				$cached_query_posts = json_decode( $cached_query_posts, false );
-				if ( $cached_query_posts
-				 && is_object( $cached_query_posts )
-				 && isset( $cached_query_posts->max_num_pages )
-				 && isset( $cached_query_posts->found_posts )
-				 && isset( $cached_query_posts->posts )
-				 && is_array( $cached_query_posts->posts )
+				if (
+					$cached_query_posts
+					&& is_object( $cached_query_posts )
+					&& isset( $cached_query_posts->max_num_pages )
+					&& isset( $cached_query_posts->found_posts )
+					&& isset( $cached_query_posts->posts )
+					&& is_array( $cached_query_posts->posts )
 				) {
 					$posts  = array_map( 'get_post', $cached_query_posts->posts );
 					$result = new WP_Query();
@@ -231,7 +240,7 @@ if ( ! function_exists( '_wpjm_shuffle_featured_post_results_helper' ) ) :
 				return 1;
 			}
 		}
-		return rand( -1, 1 );
+		return wp_rand( -1, 1 );
 	}
 endif;
 
@@ -459,14 +468,16 @@ if ( ! function_exists( 'job_manager_get_filtered_links' ) ) :
 						)
 					),
 				),
-			), $args
+			),
+			$args
 		);
 
-		if ( count( (array) $args['filter_job_types'] ) === count( $types )
-			 && empty( $args['search_keywords'] )
-			 && empty( $args['search_location'] )
-			 && empty( $args['search_categories'] )
-			 && ! apply_filters( 'job_manager_get_listings_custom_filter', false )
+		if (
+			count( (array) $args['filter_job_types'] ) === count( $types )
+			&& empty( $args['search_keywords'] )
+			&& empty( $args['search_location'] )
+			&& empty( $args['search_categories'] )
+			&& ! apply_filters( 'job_manager_get_listings_custom_filter', false )
 		) {
 			unset( $links['reset'] );
 		}
@@ -507,7 +518,8 @@ if ( ! function_exists( 'wp_job_manager_notify_new_user' ) ) :
 		global $wp_version;
 
 		if ( version_compare( $wp_version, '4.3.1', '<' ) ) {
-			wp_new_user_notification( $user_id, $password ); // phpcs:ignore WordPress.WP.DeprecatedParameters.Wp_new_user_notificationParam2Found
+			// phpcs:ignore WordPress.WP.DeprecatedParameters.Wp_new_user_notificationParam2Found
+			wp_new_user_notification( $user_id, $password );
 		} else {
 			$notify = 'admin';
 			if ( empty( $password ) ) {
@@ -1129,7 +1141,8 @@ function job_manager_dropdown_categories( $args = '' ) {
 	$output .= "</select>\n";
 
 	if ( $r['echo'] ) {
-		echo $output; // WPCS: XSS ok.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $output;
 	}
 
 	return $output;
@@ -1430,6 +1443,8 @@ function job_manager_duplicate_listing( $post_id ) {
 	/*
 	 * Duplicate post meta, aside from some reserved fields.
 	 */
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Easiest way to retrieve raw meta values without filters.
 	$post_meta = $wpdb->get_results( $wpdb->prepare( "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id=%d", $post_id ) );
 
 	if ( ! empty( $post_meta ) ) {

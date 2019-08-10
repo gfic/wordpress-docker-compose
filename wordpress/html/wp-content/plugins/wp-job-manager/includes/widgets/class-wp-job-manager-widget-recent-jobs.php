@@ -1,4 +1,10 @@
 <?php
+/**
+ * File containing the class WP_Job_Manager_Widget_Recent_Jobs.
+ *
+ * @package wp-job-manager
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -101,11 +107,11 @@ class WP_Job_Manager_Widget_Recent_Jobs extends WP_Job_Manager_Widget {
 
 		if ( $jobs->have_posts() ) : ?>
 
-			<?php echo $args['before_widget']; // WPCS: XSS ok. ?>
+			<?php echo $args['before_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 			<?php
 			if ( $title ) {
-				echo $args['before_title'] . esc_html( $title ) . $args['after_title']; // WPCS: XSS ok.
+				echo $args['before_title'] . esc_html( $title ) . $args['after_title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}
 			?>
 
@@ -116,19 +122,19 @@ class WP_Job_Manager_Widget_Recent_Jobs extends WP_Job_Manager_Widget {
 					$jobs->the_post();
 					?>
 
-					<?php get_job_manager_template( 'content-widget-job_listing.php', array( 'show_logo' => $instance['show_logo'] ) ); ?>
+					<?php get_job_manager_template( 'content-widget-job_listing.php', array( 'show_logo' => $show_logo ) ); ?>
 
 				<?php endwhile; ?>
 
 			</ul>
 
-			<?php echo $args['after_widget']; // WPCS: XSS ok. ?>
+			<?php echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 		<?php else : ?>
 
 			<?php get_job_manager_template_part( 'content-widget', 'no-jobs-found' ); ?>
 
-		<?php
+			<?php
 		endif;
 
 		/**
@@ -146,7 +152,7 @@ class WP_Job_Manager_Widget_Recent_Jobs extends WP_Job_Manager_Widget {
 
 		$content = ob_get_clean();
 
-		echo $content; // WPCS: XSS ok.
+		echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		$this->cache_widget( $args, $content );
 	}

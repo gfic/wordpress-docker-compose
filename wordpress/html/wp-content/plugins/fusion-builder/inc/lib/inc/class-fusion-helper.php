@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * Includes static helper methods.
  */
@@ -54,7 +49,7 @@ final class Fusion_Helper {
 	 */
 	public static function init_filesystem() {
 
-		$credentials = array();
+		$credentials = [];
 
 		if ( ! defined( 'FS_METHOD' ) ) {
 			define( 'FS_METHOD', 'direct' );
@@ -88,7 +83,7 @@ final class Fusion_Helper {
 			}
 		}
 
-		// The Wordpress filesystem.
+		// The WordPress filesystem.
 		global $wp_filesystem;
 
 		if ( empty( $wp_filesystem ) ) {
@@ -115,9 +110,9 @@ final class Fusion_Helper {
 
 				// Colors with very little lightness.
 				return $color_obj->getNew( 'lightness', $color_obj->lightness * 4 )->toCSS( 'rgba' );
-			} else if ( 50 > $color_obj->lightness ) {
+			} elseif ( 50 > $color_obj->lightness ) {
 				return $color_obj->getNew( 'lightness', $color_obj->lightness * 2 )->toCSS( 'rgba' );
-			} else if ( 50 <= $color_obj->lightness ) {
+			} elseif ( 50 <= $color_obj->lightness ) {
 				return $color_obj->getNew( 'lightness', $color_obj->lightness / 2 )->toCSS( 'rgba' );
 			}
 		} else {

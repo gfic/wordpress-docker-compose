@@ -1,14 +1,24 @@
 <?php
+/**
+ * File containing the view for displaying the list of add-ons available to extend WP Job Manager.
+ *
+ * @package wp-job-manager
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 echo '<h1 class="screen-reader-text">' . esc_html__( 'WP Job Manager Add-ons', 'wp-job-manager' ) . '</h1>';
 if ( ! empty( $messages ) ) {
 	foreach ( $messages as $message ) {
 		if ( empty( $message->message ) ) {
 			continue;
 		}
-		$type = 'info';
+		$message_type = 'info';
 		if ( isset( $message->type )
 		&& in_array( $message->type, array( 'info', 'success', 'warning', 'error' ), true ) ) {
-			$type = $message->type;
+			$message_type = $message->type;
 		}
 		$action_label  = isset( $message->action_label ) ? esc_attr( $message->action_label ) : __( 'More Information &rarr;', 'wp-job-manager' );
 		$action_url    = isset( $message->action_url ) ? esc_url( $message->action_url, array( 'http', 'https' ) ) : false;
@@ -18,17 +28,18 @@ if ( ! empty( $messages ) ) {
 			$action_str = ' <a href="' . esc_url( $action_url ) . '" target="' . esc_attr( $action_target ) . '" class="button">' . esc_html( $action_label ) . '</a>';
 		}
 
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' below-h2"><p><strong>' . esc_html( $message->message ) . '</strong>' . wp_kses_post( $action_str ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $message_type ) . ' below-h2"><p><strong>' . esc_html( $message->message ) . '</strong>' . wp_kses_post( $action_str ) . '</p></div>';
 	}
 }
 if ( ! empty( $categories ) ) {
-	$current_category = isset( $_GET['category'] ) ? $_GET['category'] : '_all';
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Input is used safely.
+	$current_category = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : '_all';
 	echo '<ul class="subsubsub">';
 	foreach ( $categories as $category ) {
 		?>
 		<li>
 			<a class="<?php echo $current_category === $category->slug ? 'current' : ''; ?>"
-			   href="<?php echo esc_url( admin_url( 'edit.php?post_type=job_listing&page=job-manager-addons&category=' . esc_attr( $category->slug ) ) ); ?>">
+				href="<?php echo esc_url( admin_url( 'edit.php?post_type=job_listing&page=job-manager-addons&category=' . esc_attr( $category->slug ) ) ); ?>">
 				<?php echo esc_html( $category->label ); ?>
 			</a>
 		</li>
@@ -50,7 +61,8 @@ if ( empty( $add_ons ) ) {
 				'utm_medium'   => 'addonpage',
 				'utm_campaign' => 'wpjmplugin',
 				'utm_content'  => 'listing',
-			), $add_on->link
+			),
+			$add_on->link
 		);
 		?>
 		<li class="product">

@@ -1,44 +1,136 @@
 <?php
 
+use Tribe__Utils__Array as Arr;
+
 /**
  * Class Tribe__Context
  *
  * @since 4.7.7
  * @since 4.9.5 Made the context immutable.
  */
-class
-Tribe__Context {
+class Tribe__Context {
 
+	/**
+	 * The value that will be used to indicate no value was found in any location while trying to read it.
+	 *
+	 * @since 4.9.11
+	 */
 	const NOT_FOUND = '__not_found__';
 
+	/**
+	 * The key to locate a context value as the value of a request variable.
+	 *
+	 * @since 4.9.11
+	 */
 	const REQUEST_VAR = 'request_var';
 
+	/**
+	 * The key to locate a context value as the value of a Tribe option.
+	 *
+	 * @since 4.9.11
+	 */
 	const TRIBE_OPTION = 'tribe_option';
 
+	/**
+	 * The key to locate a context value as the value of an option.
+	 *
+	 * @since 4.9.11
+	 */
 	const OPTION = 'option';
 
+	/**
+	 * The key to locate a context value as the value of a transient.
+	 *
+	 * @since 4.9.11
+	 */
 	const TRANSIENT = 'transient';
 
+	/**
+	 * The key to locate a context value as the value of the main query (global `$wp_query`) query var.
+	 *
+	 * @since 4.9.11
+	 */
 	const QUERY_VAR = 'query_var';
 
+	/**
+	 * The key to locate a context value as the value of the main query (global `$wp_query`) property.
+	 *
+	 * @since 4.9.11
+	 */
 	const QUERY_PROP = 'query_prop';
 
+	/**
+	 * The key to locate a context value as the value of a constant.
+	 *
+	 * @since 4.9.11
+	 */
 	const CONSTANT = 'constant';
 
+	/**
+	 * The key to locate a context value as a static class property.
+	 *
+	 * @since 4.9.11
+	 */
 	const STATIC_PROP = 'static_prop';
 
+	/**
+	 * The key to locate a context value as property of an object.
+	 *
+	 * @since 4.9.11
+	 */
 	const PROP = 'prop';
 
+	/**
+	 * The key to locate a context value as result running a static class method.
+	 *
+	 * @since 4.9.11
+	 */
 	const STATIC_METHOD = 'static_method';
 
+	/**
+	 * The key to locate a context value as result running a method on an object.
+	 *
+	 * @since 4.9.11
+	 */
 	const METHOD = 'method';
 
+	/**
+	 * The key to locate a context value as result running a callback function (e.g. a callable, a closure).
+	 *
+	 * @since 4.9.11
+	 */
 	const FUNC = 'func';
 
+	/**
+	 * The key to locate a context value as result of reading a global value.
+	 *
+	 * @since 4.9.11
+	 */
 	const GLOBAL_VAR = 'global_var';
 
+	/**
+	 * The key to locate a context value as result of an `apply_filters` call.
+	 *
+	 * @since 4.9.11
+	 */
+	const FILTER = 'filter';
+
+	/**
+	 * The key to locate a context value among the values parsed by `WP::parse_request`.
+	 *
+	 * @since 4.9.11
+	 */
+	const WP_PARSED = 'wp_parsed';
+
+	/**
+	 * The key to locate a context value among the values in the query mached by `WP::parse_request`.
+	 *
+	 * @since 4.9.11
+	 */
+	const WP_MATCHED_QUERY = 'wp_matched_query';
+
 	/*
-	*
+	 *
 	 * An array defining the properties the context will be able to read and (dangerously) write.
 	 *
 	 * This is the configuration that should be modified to add/remove/modify values and locations
@@ -62,36 +154,20 @@ Tribe__Context {
 	 * static_method - get the value from a class static method.
 	 * method - get the value calling a method on a tribe() container binding.
 	 * func - get the value from a function or a closure.
+	 * filter - get the value by applying a filter.
 	 *
 	 * For each location additional arguments can be specified:
 	 * orm_arg - if `false` then the location will never produce an ORM argument, if provided the ORM arg produced bye the
 	 * location will have this name.
 	 * orm_transform - if provided the value of the location will be obtained by passing it as an argument to a callable.
 	 *
+	 * As the Context locations increase in number it would be impractical to define them inline here.
+	 * The locations will be loaded by the `Tribe__Context::populate_locations` method from the `Context/locations.php`
+	 * file.
+	 *
 	 * @var array
 	 */
-	protected static $locations = array(
-		'posts_per_page' => array(
-			'read' => array(
-				self::REQUEST_VAR  => 'posts_per_page',
-				self::TRIBE_OPTION => array( 'posts_per_page', 'postsPerPage' ),
-				self::OPTION       => 'posts_per_page',
-			),
-			'write' => array(
-				self::REQUEST_VAR  => 'posts_per_page',
-			),
-		),
-		'event_display'  => array(
-			'read' => array(
-				self::REQUEST_VAR => 'tribe_event_display',
-				self::QUERY_VAR   => 'eventDisplay',
-			),
-			'write' => array(
-				self::REQUEST_VAR => 'tribe_event_display',
-				self::QUERY_VAR   => 'eventDisplay',
-			),
-		),
-	);
+	protected static $locations = [];
 
 	/**
 	 * A utility static property keeping track of write locations that
@@ -106,6 +182,13 @@ Tribe__Context {
 		self::PROP,
 		self::STATIC_PROP,
 	);
+
+	/**
+	 * Whether the static dynamic locations were set or not.
+	 *
+	 * @var bool
+	 */
+	protected static $did_populate_locations = false;
 
 	/**
 	 * A list of override locations to read and write from.
@@ -264,12 +347,12 @@ Tribe__Context {
 		 *
 		 * @since 4.9.5
 		 *
-		 * @param mixed  $value   The value for the key before it's fetched from the context.
-		 * @param string $key     The key of the value to fetch from the context.
-		 * @param mixed  $default The default value that should be returned if the value is
-		 *                        not set in the context.
-		 * @param bool $force Whether to force the re-fetch of the value from the context or
-		 *                    not; defaults to `false`.
+		 * @param  mixed   $value    The value for the key before it's fetched from the context.
+		 * @param  string  $key      The key of the value to fetch from the context.
+		 * @param  mixed   $default  The default value that should be returned if the value is
+		 *                           not set in the context.
+		 * @param  bool    $force    Whether to force the re-fetch of the value from the context or
+		 *                           not; defaults to `false`.
 		 */
 		$value = apply_filters( "tribe_context_pre_{$key}", null, $key, $default, $force );
 		if ( null !== $value ) {
@@ -279,20 +362,10 @@ Tribe__Context {
 		$value     = $default;
 		$locations = $this->get_locations();
 
-		if ( ! isset( $locations[ $key ] ) ) {
-			return $default;
-		}
-
-		$the_locations = $locations[ $key ]['read'];
-
-		if ( ! isset( $the_locations ) ) {
-			return $value;
-		}
-
 		if ( ! $force && isset( $this->request_cache[ $key ] ) ) {
 			$value = $this->request_cache[ $key ];
-		} else {
-			foreach ( $the_locations as $location => $keys ) {
+		} elseif ( ! empty( $locations[ $key ]['read'] ) ) {
+			foreach ( $locations[ $key ]['read'] as $location => $keys ) {
 				$the_value = $this->$location( (array) $keys, $default );
 
 				if ( $default !== $the_value ) {
@@ -309,7 +382,7 @@ Tribe__Context {
 		 *
 		 * @since 4.9.5
 		 *
-		 * @param mixed $value The value as fetched from the context.
+		 * @param  mixed  $value  The value as fetched from the context.
 		 */
 		$value = apply_filters( "tribe_context_{$key}", $value );
 
@@ -364,6 +437,8 @@ Tribe__Context {
 	 *               `[ <location> => [ 'read' => <read_locations>, 'write' => <write_locations> ] ]`.
 	 */
 	public function get_locations() {
+		$this->populate_locations();
+
 		return $this->use_default_locations
 			? array_merge( self::$locations, $this->override_locations )
 			: $this->override_locations;
@@ -1001,7 +1076,6 @@ Tribe__Context {
 	 * Sets, replacing them, the locations used by this context.
 	 *
 	 *
-	 *
 	 * @since 4.9.5
 	 *
 	 * @param array $locations An array of locations to replace the current ones.
@@ -1027,10 +1101,10 @@ Tribe__Context {
 	 * @return array An associative array of the context keys and values.
 	 */
 	public function to_array(  ) {
-		$locations = $this->get_locations();
+		$locations = array_keys( array_merge( $this->get_locations(), $this->request_cache ) );
 		$dump      = array();
 
-		foreach ( array_keys( $locations ) as $location ) {
+		foreach ( $locations as $location ) {
 			$the_value = $this->get( $location, self::NOT_FOUND );
 
 			if ( self::NOT_FOUND === $the_value ) {
@@ -1039,7 +1113,6 @@ Tribe__Context {
 
 			$dump[ $location ] = $the_value;
 		}
-
 
 		return $dump;
 	}
@@ -1177,5 +1250,204 @@ Tribe__Context {
 		}
 
 		return $orm_args;
+	}
+
+	/**
+	 * Sets some locations that can only be set at runtime.
+	 *
+	 * Using a flag locations are added only once per request.
+	 *
+	 * @since 4.9.8
+	 */
+	protected function populate_locations() {
+		if ( static::$did_populate_locations ) {
+			return;
+		}
+
+		// To improve the class readability, and as a small optimization, locations are loaded from a file.
+		static::$locations = include __DIR__ . '/Context/locations.php';
+
+		/**
+		 * Filters the locations registered in the Context.
+		 *
+		 * @since 4.9.8
+		 *
+		 * @param  array  $locations  An array of locations registered on the Context object.
+		 */
+		static::$locations = apply_filters( 'tribe_context_locations', static::$locations, $this );
+
+		static::$did_populate_locations = true;
+	}
+
+	/**
+	 * Reads (gets) the value applying one or more filters.
+	 *
+	 * @since 4.9.8
+	 *
+	 * @param array $filters The list of filters to apply, in order.
+	 * @param mixed $default The default value to return.
+	 *
+	 * @return mixed The first valid value found or the default value.
+	 */
+	public function filter( array $filters, $default ) {
+		foreach ( $filters as $filter ) {
+			$the_value = apply_filters( $filter, $default );
+			if ( $the_value !== $default ) {
+				return $the_value;
+			}
+		}
+
+		return $default;
+	}
+
+	/**
+	 * Reads (gets) the value reading it from a query var parsed from the global `$wp` object.
+	 *
+	 * @since 4.9.8
+	 *
+	 * @param array $vars    The list of variables to read, in order.
+	 * @param mixed $default The default value to return if no variable was parsed.
+	 *
+	 * @return mixed The first valid value found or the default value.
+	 */
+	public function wp_parsed( array $vars, $default ) {
+		/** @var WP $wp */
+		global $wp;
+
+		if ( ! $wp instanceof WP || empty($wp->query_vars) ) {
+			return $default;
+		}
+
+		return Arr::get_first_set( (array) $wp->query_vars, $vars, $default );
+	}
+
+	/**
+	 * Reads (gets) the value reading it from a query var parsed from the query matched by the global `$wp` object.
+	 *
+	 * @since 4.9.8
+	 *
+	 * @param array $vars    The list of variables to read, in order.
+	 * @param mixed $default The default value to return if no variable was parsed.
+	 *
+	 * @return mixed The first valid value found or the default value.
+	 */
+	public function wp_matched_query( array $vars, $default ) {
+		/** @var WP $wp */
+		global $wp;
+
+		if ( ! $wp instanceof WP || empty( $wp->matched_query ) ) {
+			return $default;
+		}
+
+		parse_str( $wp->matched_query, $query_vars );
+
+		return Arr::get_first_set( (array) $query_vars, $vars, $default );
+	}
+
+	/**
+	 * Maps an input array to the corresponding read locations.
+	 *
+	 * The resulting array can be used as input for the `alter_values` method.
+	 * The main use of this method is to leverage the Context knowledge of the read locations, and their types, to
+	 * "translate" an array of values to an array of valid read sources. As an example this is useful to "translate"
+	 * the locations to an array of query vars:
+	 *      $input = [ 'event_display' => 'some-view', 'event_date' => '2018-01-03' ];
+	 *      $query_args = tribe_context()->map_to_read( $input, Tribe__Context::REQUEST_VAR );
+	 *      $url = add_query_arg( $query_args, home_url() );
+	 *
+	 * @since 4.9.11
+	 *
+	 * @param array             $input       An associative array of values in the shape `[ <location> => <value> ]`;
+	 *                                       where `location` is the name of the location registered in the Context
+	 *                                       locations.
+	 * @param string|array|null $types       A white-list of read location types to include in the mapped output;
+	 *                                       `null`
+	 *                                       means all types are allowed.
+	 * @param bool              $passthru    Whether to pass unknown locations in the output or not; if `false` then
+	 *                                       any input key that's not a context location will not appear in the output;
+	 *                                       defaults to `false` to remove unknown locations from the output.
+	 *
+	 * @return array An associative array in the shape `[ <read_location> => <input_value> ]`. Since some read
+	 *              locations could have multiple sources the number of elements in this array will likely NOT be the
+	 *              same as the number of elements in the input array. When a read location as more than 1 source then
+	 *              the value will be duplicated, in the output array, to both sources.
+	 */
+	public function map_to_read( array $input, $types = null, $passthru = false ) {
+		$mapped    = [];
+		$processed = [];
+		$types     = null !== $types ? (array) $types : null;
+
+		$locations = $this->get_locations();
+
+		// Take the current read locations
+		foreach ( $locations as $key => $location ) {
+			if ( ! isset( $location['read'], $input[ $key ] ) ) {
+				continue;
+			}
+
+			$processed[] = $key;
+
+			foreach ( $location['read'] as $type => $name ) {
+				if ( null !== $types && ! in_array( $type, $types, true ) ) {
+					continue;
+				}
+
+				foreach ( (array) $name as $destination ) {
+					$mapped[ $destination ] = $input[ $key ];
+				}
+			}
+		}
+
+		if ( $passthru ) {
+			$mapped = array_merge(
+				$mapped,
+				array_diff_key( $input, array_keys( $locations ), array_combine( $processed, $processed ) )
+			);
+		}
+
+		ksort( $mapped );
+
+		return $mapped;
+	}
+
+	/**
+	 * Translates sub-locations to their respective location key.
+	 *
+	 * This method leverages the inherent knowledge of aliases stored in the Context locations to "translate" a
+	 * sub-location to its location key.
+	 * E.g. assume the `car` location is `read` from the [ 'carriage', 'vehicle', 'transport_mean' ] query var; calling
+	 * `$context->populate_aliases( [ 'vehicle' => 'hyunday' ], 'read', Context::QUERY_VAR )` would yield
+	 * `[ 'car' => 'hyunday' ]`.
+	 *
+	 * @since 4.9.12
+	 *
+	 * @param array  $values    An associative array of value to use as "masters" to populate the aliases.
+	 * @param string $type      The type of Context location to use, e.g. `Tribe__Context::QUERY_VAR`.
+	 * @param string $direction The direction to use for the location, one of `read` or `write`.
+	 *
+	 * @return array The original array, merged with the populated values.
+	 */
+	public function translate_sub_locations( array $values, $type, $direction = 'read' ) {
+		if ( ! in_array( $direction, [ 'read', 'write' ], true ) ) {
+			throw new \InvalidArgumentException(
+				"Direction must be one of `read` or `write`; `{$direction}` is not valid."
+			);
+		}
+
+		$filled             = [];
+		$locations          = $this->get_locations();
+		$matching_locations = array_filter( $locations, static function ( $location ) use ( $type, $direction ) {
+			return isset( $location[ $direction ][ $type ] );
+		} );
+
+		foreach ( $matching_locations as $key => $location ) {
+			$entry = (array)$location[ $direction ][ $type ];
+			$found = array_intersect( array_keys( $values ), array_merge( $entry, [ $key ] ) );
+			if ( $found ) {
+				$filled[ $key ] = $values[ reset( $found ) ];
+			}
+		}
+
+		return $filled;
 	}
 }

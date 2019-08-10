@@ -144,12 +144,8 @@
     .button,
     .button-primary {
       text-shadow: none;
-      -webkit-box-shadow: none;
       border-radius: 0;
-      -moz-border-radius: 0;
-      -webkit-border-radius: 0;
       box-shadow: none;
-      -webkit-box-shadow: none;
     }
 
     .fusionredux-sidebar {
@@ -291,7 +287,6 @@
             top: 0;
             left: 250px;
             width: 200px !important;
-            -webkit-box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
             box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
 
             a {
@@ -487,10 +482,6 @@
           li {
             float: right;
             max-width: 50%;
-            -webkit-transition: all 0.5s;
-            -moz-transition: all 0.5s;
-            -ms-transition: all 0.5s;
-            -o-transition: all 0.5s;
             transition: all 0.5s;
 
             &:hover {
@@ -508,6 +499,7 @@
         margin: 0;
       }
 
+      .fusion_theme_options-privacy_bar_content,
       .fusion_theme_options-social_media_icons {
         .ui-accordion-content {
           .fusionredux-field-container {
@@ -600,11 +592,6 @@
         }
       }
 
-      input#fusionredux_save {
-        background-color: @color-accent-2 !important;
-        color: @color-text-menu-top-level-active !important;
-      }
-
       .fusionredux-typography-container {
         .select_wrapper {
           max-width: ~"calc(50% - 10px)" !important;
@@ -653,6 +640,44 @@
         }
       }
 
+      .fusionredux-container-sortable {
+          .fusionredux-sortable {
+              li {
+                  margin: 0 0 10px 0 !important;
+                  padding: 0 7px;
+                  width: 100%;
+                  line-height: 1 !important;
+                  border: 1px solid rgba(0, 0, 0, 0.05);
+                  background-color: #f4f2f2;
+                  box-sizing: border-box;
+                  position: relative;
+                  text-align: center;
+                  cursor: move;
+
+                  &:last-child {
+                      margin-bottom: 0 !important;
+                  }
+
+                  span {
+                      margin: 0 !important;
+                      height: 34px;
+                      line-height: 34px;
+                  }
+              }
+
+              .ui-sortable-placeholder {
+                  background: #f3f3f3 !important;
+                  border: 1px dashed rgba(0, 0, 0, 0.1) !important;
+                  visibility: visible !important;
+                  box-shadow: none;
+                  padding-left: 0;
+                  padding-right: 0;
+                  animation: zoomIn 0.3s 1 cubic-bezier(0.77, 0, 0.175, 1);
+                  display: block;
+              }
+          }
+      }
+
       .fusionredux-container-color,
       .fusionredux-container-color_alpha,
       .fusionredux-container-typography {
@@ -686,6 +711,7 @@
           }
 
           .iris-picker {
+              overflow: hidden;
             width: 100% !important;
 
             .iris-palette,
@@ -731,6 +757,20 @@
 
             &.iris-border {
               padding-bottom: 30px !important;
+            }
+
+            .iris-square-value {
+                display: block;
+                width: 0 !important;
+                height: 0 !important;
+                outline: none;
+                box-shadow: none;
+            }
+
+            .iris-square-handle {
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%,-50%);
             }
           }
 
@@ -790,16 +830,13 @@
       .upload_button_div {
         .button {
           border-radius: 0;
-          -moz-border-radius: 0;
-          -webkit-border-radius: 0;
           box-shadow: none;
-          -webkit-box-shadow: none;
         }
       }
 
       #fusionredux-sticky {
         #info_bar {
-          padding: 20px 50px;
+          padding: 20px 121px 20px 50px;
           height: @input-element-height;
           background: #fff;
 
@@ -811,21 +848,34 @@
         }
       }
 
+      #fusion-edit-on-front-end {
+          float: left;
+          margin: 0;
+      }
+
       .fusion-support-links {
-        float: left;
-        margin-right: 250px;
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 71px;
+        width: 71px;
+        border-left: 1px solid #dedede;
 
         a {
+          display: block;
+          height: 100%;
+          text-align: center;
           color: #666;
-          text-decoration: none;
-          margin-right: 10px;
-          line-height: @input-element-height;
 
-          span.dashicons {
-            line-height: @input-element-height;
-            margin-right: 6px;
-            font-size: 14px;
-            width: 14px;
+          span {
+              position: absolute;
+              left: 50%;
+              top: 50%;
+              transform: translate(-50%,-50%);
+              padding: 3px;
+              font-size: 15px;
+              border: 2px solid #666;
+              border-radius: 50%;
           }
         }
       }
@@ -844,7 +894,6 @@
         padding-left: 12px;
         width: 250px !important;
         background: #f4f2f2 !important;
-        border: none !important;
         color: #333;
       }
 
@@ -1008,8 +1057,6 @@
 
       input[type=radio] {
         border-radius: 50% !important;
-        -moz-border-radius: 50% !important;
-        -webkit-border-radius: 50% !important;
         border: 1px solid rgba(0, 0, 0, 0.2);
 
         &:checked:before {
@@ -1017,8 +1064,6 @@
           height: 10px;
           margin: 2px;
           border-radius: 50%;
-          -moz-border-radius: 50%;
-          -webkit-border-radius: 50%;
         }
 
         + span > p {
@@ -1026,13 +1071,26 @@
         }
       }
 
-      .fusionredux-container-switch .cb-enable.selected,
-      .fusionredux-field-container .ui-buttonset .ui-state-active {
-        background-image: none !important;
-        .no-box-shadow;
-        border-color: rgba(0,0,0,.1) !important;
-        background-color: @color-accent-2 !important;
-        color: @color-text-menu-top-level-active;
+      .fusionredux-container-switch,
+      .fusionredux-field-container {
+        .cb-enable.selected,
+        .ui-buttonset .ui-state-active {
+          background-image: none !important;
+          .no-box-shadow;
+          border-color: rgba(0,0,0,.1) !important;
+          background-color: @color-accent-2 !important;
+          color: @color-text-menu-top-level-active;
+        }
+
+        .ui-buttonset {
+            label[for*="buttonsetno"],
+            label[for*="buttonsetoff"] {
+                &.ui-state-active {
+                  background: @color-back-2 !important;
+                  color: @color-text-menu-top-level;
+                }
+            }
+        }
       }
 
       .fusionredux-container-switch {
@@ -1452,10 +1510,6 @@
 
 .fusion-redux-search {
   .fusionredux-sidebar {
-    -webkit-transition: all 250ms ease-in-out;
-    -moz-transition: all 250ms ease-in-out;
-    -ms-transition: all 250ms ease-in-out;
-    -o-transition: all 250ms ease-in-out;
     transition: all 250ms ease-in-out;
     opacity: 0.2;
 
@@ -1512,14 +1566,10 @@
 
 .fusion-tooltip {
   &.qtip-rounded {
-    -moz-border-radius: 3px;
-    -webkit-border-radius: 3px;
     border-radius: 3px;
   }
 
   &.qtip-shadow {
-    -webkit-box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.15);
-    -moz-box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.15);
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.15);
   }
 
@@ -1550,10 +1600,6 @@
 .fusion-custom-color-scheme .color-toggle {
   height: auto;
   opacity: 1;
-  -webkit-transition: all 0.5s ease;
-  -moz-transition: all 0.5s ease;
-  -ms-transition: all 0.5s ease;
-  -o-transition: all 0.5s ease;
   transition: all 0.5s ease;
 }
 
@@ -1562,10 +1608,6 @@
   overflow: hidden;
   opacity: 0;
   padding-top: 0;
-  -webkit-transition: all 0.5s ease;
-  -moz-transition: all 0.5s ease;
-  -ms-transition: all 0.5s ease;
-  -o-transition: all 0.5s ease;
   transition: all 0.5s ease;
 }
 
@@ -1581,7 +1623,7 @@
   padding-top: 25px;
 }
 
-.fusionredux-main .fusionredux-group-tab[data-rel="10"] .form-table tr:nth-child(3) {
+.fusionredux-main .form-table tr.color-scheme.fusion_options {
   border-bottom: none;
 }
 
@@ -1649,37 +1691,86 @@
   display: inline !important;
 }
 /* Media Queries */
-@media only screen and (max-width: 1285px) {
+@media only screen and (max-width: 1370px) {
   .fusionredux-container {
     #fusionredux-form-wrapper .fusionredux-main .fusion-support-links {
       margin-right: 0;
     }
 
-    #info_bar {
+    #fusionredux-form-wrapper div.fusionredux-main #fusionredux-sticky #info_bar {
+        margin-top: 31px;
+        padding-right: 50px;
       text-align: left;
+
+      .rtl & {
+          padding-left: 50px;
+          text-align: right;
+      }
     }
 
     .fusionredux-action_bar {
       float: none;
+
+      .rtl & {
+          float: none !important;
+      }
     }
+
+    #fusionredux-form-wrapper .fusionredux-main .fusion-support-links {
+        position: absolute;
+        top: 10px;
+        left: 310px;
+        height: 30px;
+        width: 30px;
+        border: none;
+
+        .rtl & {
+            right: 310px;
+            left: auto;
+            border: none;
+        }
+    }
+
+    #fusionredux-form-wrapper .fusionredux-main .fusionredux_field_search {
+         top: 10px;
+         left: 50px;
+
+         .rtl & {
+             right: 50px;
+         }
+     }
 
     #fusionredux-form-wrapper .fusionredux-main .fusionredux-container-spacing .field-spacing-input {
       width: ~'calc(35% - 5px)';
     }
   }
-
-  .fusionredux_field_search {
-    position: static;
-    margin-left: 30px !important;
-  }
-}
-@media only screen and (min-width: 1200px) {
-  .fusion_theme_options-custom_color_scheme_options {
-    width: 50%;
-    float: right;
-  }
 }
 @media only screen and (max-width: 1200px) {
+    .fusionredux-container .fusionredux-action_bar { float: left; }
+    .fusionredux-container .fusionredux-action_bar .spinner { float: right; }
+
+    .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusionredux_field_search { width: 200px !important; }
+
+    .fusionredux-container #fusionredux-form-wrapper .fusionredux-main #fusion-edit-on-front-end {
+        position: absolute;
+        top: 10px;
+        left: 255px;
+
+        .rtl & {
+            right: 255px;
+            left: auto;
+        }
+    }
+
+    .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusion-support-links {
+        left: 390px;
+
+        .rtl & {
+            right: 390px;
+            left: auto;
+        }
+    }
+
   .fusionredux-container #fusionredux-form-wrapper .form-table td,
   .fusionredux-container #fusionredux-form-wrapper .form-table th,
   .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusionredux-field[data-id="header_layout"] .fusionredux_field_th {
@@ -1726,13 +1817,20 @@
         display: none;
       }
     }
-
-    #fusionredux-form-wrapper .fusionredux-main .fusion-support-links {
-      display: none;
-    }
   }
 }
 @media only screen and (max-width: 782px) {
+    .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusion-support-links { display: none; }
+
+    #fusion-edit-on-front-end,
+    .fusionredux-action_bar #fusionredux_save,
+    .fusionredux-action_bar #fusionredux-defaults-section,
+    .fusionredux-action_bar #fusionredux-defaults {
+        padding-top: 0;
+        padding-bottom: 0;
+        font-size: 13px;
+    }
+
   .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusionredux-container-spacing .field-spacing-input {
     width: 100%;
   }
@@ -1748,6 +1846,24 @@
 @media only screen and (max-width: 720px) {
   .fusionredux-container #fusionredux-form-wrapper .fusionredux-main input#fusionredux_save {
     margin-right: 4px;
+
+    .rtl & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
+  }
+
+  .fusionredux-container #fusionredux-form-wrapper .fusionredux-main #fusion-edit-on-front-end {
+      left: 50px;
+
+      .rtl & {
+          right: 50px;
+          left: auto;
+      }
+  }
+
+  .fusionredux-container #fusionredux-form-wrapper .fusionredux-main .fusionredux_field_search {
+      display: none;
   }
 
   #fusionredux-defaults-section {
@@ -1972,15 +2088,24 @@
         }
       }
 
+        .fusionredux-main #fusionredux-sticky #info_bar {
+            padding: 20px 50px 20px 121px;
+        }
+
       .fusion-support-links {
-        float: right;
-        margin-left: 250px;
-        margin-right: 0;
+        left: 0;
+        right: auto;
+        border-right: 1px solid #dedede;
+        border-left: none;
 
         a span.dashicons {
           margin-left: 6px;
           margin-right: 0;
         }
+      }
+
+      .fusionredux-main #fusion-edit-on-front-end {
+          float: right;
       }
 
       .fusionredux_field_search {

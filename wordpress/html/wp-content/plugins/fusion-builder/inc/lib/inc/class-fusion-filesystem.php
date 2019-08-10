@@ -7,11 +7,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * Extra methods that are necessary for the compilers.
  */
@@ -206,18 +201,19 @@ class Fusion_Filesystem {
 	 */
 	public function get_url() {
 
-		$url       = trailingslashit( $this->get_root_url() ) . $this->file;
-		$timestamp = ( file_exists( $this->path ) ) ? '?timestamp=' . filemtime( $this->path ) : '';
+		// Get the file URL.
+		$url = trailingslashit( $this->get_root_url() ) . $this->file;
 
+		// Get the scheme.
 		$scheme = null;
 		// We use get_option() instead of site_url() or get_site_url() because these dedicated functions
 		// use set_url_scheme to set the protocol and we need to check what is actually saved in the db.
 		if ( false !== strpos( 'https://', get_option( 'siteurl' ) ) ) {
 			$scheme = 'https';
 		}
-		$url = set_url_scheme( $url, $scheme );
 
-		return $url . $timestamp;
+		// Return the URL, with the correct scheme applied.
+		return set_url_scheme( $url, $scheme );
 	}
 
 	/**
@@ -257,7 +253,7 @@ class Fusion_Filesystem {
 			if ( function_exists( 'domain_mapping_siteurl' ) && function_exists( 'get_original_url' ) ) {
 				$mapped_domain   = domain_mapping_siteurl( false );
 				$original_domain = get_original_url( 'siteurl' );
-				$url = str_replace( $original_domain, $mapped_domain, $url );
+				$url             = str_replace( $original_domain, $mapped_domain, $url );
 			}
 		}
 		return apply_filters( 'fusion_compiler_filesystem_root_url', untrailingslashit( esc_url_raw( $url ) ) );

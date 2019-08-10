@@ -1,9 +1,9 @@
 /* global fusionAllElements */
 var FusionPageBuilder = FusionPageBuilder || {};
 
-( function( $ ) {
+( function() {
 
-	$( document ).ready( function() {
+	jQuery( document ).ready( function() {
 
 		// Builder Element Preview View
 		FusionPageBuilder.ElementPreviewView = window.wp.Backbone.View.extend( {
@@ -11,7 +11,11 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			className: 'fusion_module_block_preview ',
 
 			initialize: function() {
-				this.template = FusionPageBuilder.template( $( '#' + fusionAllElements[ this.model.attributes.element_type ].preview_id ).html() );
+				if ( jQuery( '#' + fusionAllElements[ this.model.attributes.element_type ].preview_id ).length ) {
+					this.template = FusionPageBuilder.template( jQuery( '#' + fusionAllElements[ this.model.attributes.element_type ].preview_id ).html() );
+				} else {
+					this.template = FusionPageBuilder.template( jQuery( '#fusion-builder-block-module-default-preview-template' ).html() );
+				}
 			},
 
 			render: function() {
@@ -21,4 +25,4 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			}
 		} );
 	} );
-} ( jQuery ) );
+}( jQuery ) );

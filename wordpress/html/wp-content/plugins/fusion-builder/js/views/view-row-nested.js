@@ -1,4 +1,8 @@
-/* global FusionPageBuilderEvents, fusionBuilderGetContent, FusionPageBuilderApp, FusionPageBuilderViewManager, FusionPageBuilderElements, fusionHistoryManager, fusionBuilderText, alert */
+/* global FusionPageBuilderEvents, fusionBuilderGetContent, FusionPageBuilderApp, FusionPageBuilderViewManager, FusionPageBuilderElements, fusionHistoryManager, fusionBuilderText */
+/* eslint no-alert: 0 */
+/* eslint no-unused-vars: 0 */
+/* eslint no-shadow: 0 */
+
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -70,8 +74,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				$( '.fusion_builder_modal_inner_row_overlay' ).remove();
 
 				this.$el.find( '.fusion-builder-column-inner' ).each( function() {
-					if ( 'undefined' !== typeof jQuery( this )[0].dataset ) {
-						innerColumnsString += jQuery( this )[0].dataset.columnSize.replace( '_', '/' ) + ' + ';
+					if ( 'undefined' !== typeof jQuery( this )[ 0 ].dataset ) {
+						innerColumnsString += jQuery( this )[ 0 ].dataset.columnSize.replace( '_', '/' ) + ' + ';
 					} else {
 						innerColumnsString += jQuery( this ).data( 'column-size' ).replace( '_', '/' ) + ' + ';
 					}
@@ -92,13 +96,13 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					return model.get( 'cid' ) === thisEl.data( 'cid' );
 				} );
 
-				element.set( { 'chnaged': { 'changed': true } } );
+				element.set( { chnaged: { changed: true } } );
 
 				FusionPageBuilderEvents.trigger( 'fusion-element-edited' );
 
 				this.$el.find( '.fusion-builder-column-inner' ).each( function() {
-					if ( 'undefined' !== typeof jQuery( this )[0].dataset ) {
-						innerColumnsString += jQuery( this )[0].dataset.columnSize.replace( '_', '/' ) + ' + ';
+					if ( 'undefined' !== typeof jQuery( this )[ 0 ].dataset ) {
+						innerColumnsString += jQuery( this )[ 0 ].dataset.columnSize.replace( '_', '/' ) + ' + ';
 					} else {
 						innerColumnsString += jQuery( this ).data( 'column-size' ).replace( '_', '/' ) + ' + ';
 					}
@@ -109,7 +113,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				this.$el.find( '.fusion-builder-row-content' ).hide();
 				$( 'body' ).removeClass( 'fusion_builder_inner_row_no_scroll' );
 				$( '.fusion_builder_modal_inner_row_overlay' ).remove();
-				element.set( { 'chnaged': {} } );
+				element.set( { chnaged: {} } );
 
 				// Save history state
 				fusionHistoryManager.turnOnTracking();
@@ -156,7 +160,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				// If global, make it.
 				if ( 'undefined' !== typeof this.model.attributes.params && 'undefined' !== typeof this.model.attributes.params.fusion_global ) {
-					FusionPageBuilderApp.addClassToElement( this.$el, 'fusion-global-element', this.model.attributes.params.fusion_global );
+					FusionPageBuilderApp.addClassToElement( this.$el, 'fusion-global-element', this.model.attributes.params.fusion_global, this.model.get( 'cid' ) );
 				}
 
 				return this;
@@ -310,7 +314,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 								thisModel.attributes.params = { fusion_global: $( data.responseText ).attr( 'data-layout_id' ) };
 								$( 'div.fusion_builder_column_element[data-cid="' + thisModel.get( 'cid' ) + '"]' ).addClass( 'fusion-global-element' );
 								$( 'div.fusion_builder_column_element[data-cid="' + thisModel.get( 'cid' ) + '"]' ).attr( 'fusion-global-layout', $( data.responseText ).attr( 'data-layout_id' ) );
-								$( 'div.fusion_builder_column_element[data-cid="' + thisModel.get( 'cid' ) + '"]' ).append( '<div class="fusion-builder-global-tooltip"><span>' + fusionBuilderText.global_column + '</span></div>' );
+								$( 'div.fusion_builder_column_element[data-cid="' + thisModel.get( 'cid' ) + '"]' ).append( '<div class="fusion-builder-global-tooltip" data-cid="' + thisModel.get( 'cid' ) + '"><span>' + fusionBuilderText.global_column + '</span></div>' );
 								FusionPageBuilderEvents.trigger( 'fusion-element-added' );
 								FusionPageBuilderApp.saveGlobal = true;
 
@@ -321,6 +325,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					} );
 
 				} else {
+					FusionPageBuilderApp.layoutIsSaving = false;
 					alert( fusionBuilderText.please_enter_element_name );
 				}
 			},
@@ -333,50 +338,13 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				shortcode += '[fusion_builder_row_inner]';
 
-				// Find nested columns in this row
 				$thisRowInner.find( '.fusion-builder-column-inner' ).each( function() {
-					var $thisColumnInner = $( this ),
-						columnInnerCID   = $thisColumnInner.data( 'cid' ),
-						module           = FusionPageBuilderElements.findWhere( { cid: columnInnerCID } ),
-						columnParams     = {},
-						columnAttributesCheck;
+					var $thisColumn = $( this ),
+						$columnCID  = $thisColumn.data( 'cid' ),
+						$columnView = FusionPageBuilderViewManager.getView( $columnCID );
 
-					_.each( module.get( 'params' ), function( value, name ) {
-
-						if ( 'undefined' === value ) {
-							columnParams[name] = '';
-						} else {
-							columnParams[name] = value;
-						}
-
-					} );
-
-					// Legacy support for new column options
-					columnAttributesCheck = {
-						min_height: '',
-						last: 'no',
-						hover_type: 'none',
-						link: '',
-						border_position: 'all'
-					};
-
-					_.each( columnAttributesCheck, function( value, name ) {
-
-						if ( 'undefined' === typeof columnParams[ name ] ) {
-							columnParams[name] = value;
-						}
-
-					} );
-
-					// Build column shortcdoe
-					shortcode += '[fusion_builder_column_inner type="' + module.get( 'layout' ) + '" background_position="' + columnParams.background_position + '" background_color="' + columnParams.background_color + '" border_size="' + columnParams.border_size + '" border_color="' + columnParams.border_color + '" border_style="' + columnParams.border_style + '" spacing="' + columnParams.spacing + '" background_image="' + columnParams.background_image + '" background_repeat="' + columnParams.background_repeat + '" padding_top="' + columnParams.padding_top + '" padding_bottom="' + columnParams.padding_bottom + '" padding_left="' + columnParams.padding_left + '" padding_right="' + columnParams.padding_right + '" margin_top="' + columnParams.margin_top + '" margin_bottom="' + columnParams.margin_bottom + '" class="' + columnParams.class + '" id="' + columnParams.id + '" animation_type="' + columnParams.animation_type + '" animation_speed="' + columnParams.animation_speed + '" animation_direction="' + columnParams.animation_direction + '" hide_on_mobile="' + columnParams.hide_on_mobile + '" center_content="' + columnParams.center_content + '" last="' + columnParams.last + '" min_height="' + columnParams.min_height + '" hover_type="' + columnParams.hover_type + '" link="' + columnParams.link + '"]';
-
-						// Find elements in this column
-						$thisColumnInner.find( '.fusion_module_block' ).each( function() {
-							shortcode += FusionPageBuilderApp.generateElementShortcode( $( this ), false );
-						} );
-
-					shortcode += '[/fusion_builder_column_inner]';
+					// Get column contents shortcode
+					shortcode += $columnView.getColumnContent( $thisColumn );
 
 				} );
 
@@ -458,4 +426,4 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			}
 		} );
 	} );
-} ( jQuery ) );
+}( jQuery ) );

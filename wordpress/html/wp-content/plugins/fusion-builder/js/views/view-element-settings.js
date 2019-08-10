@@ -1,4 +1,9 @@
-/* global openShortcodeGenerator, FusionPageBuilderEvents, fusionAllElements, FusionPageBuilderApp, CodeMirror, fusionBuilderText, noUiSlider, wNumb, FusionPageBuilderViewManager, alert */
+/* global openShortcodeGenerator, FusionPageBuilderEvents, fusionAllElements, FusionPageBuilderApp, fusionBuilderText, noUiSlider, wNumb, FusionPageBuilderViewManager */
+/* eslint no-unused-vars: 0 */
+/* eslint no-shadow: 0 */
+/* eslint no-extend-native: 0 */
+/* eslint no-alert: 0 */
+/* eslint no-empty-function: 0 */
 var FusionPageBuilder = FusionPageBuilder || {};
 
 ( function( $ ) {
@@ -39,9 +44,29 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 
 			},
-
 			render: function() {
-				var $thisEl = this.$el,
+				var $thisEl = this.$el;
+
+				$thisEl.html( this.template( { atts: this.model.attributes } ) );
+
+				this.optionInit( $thisEl );
+
+				setTimeout( function() {
+					$thisEl.find( 'select, input, textarea, radio' ).filter( ':eq(0)' ).not( '[data-placeholder]' ).focus();
+				}, 1 );
+
+				// Check option dependencies
+				if ( 'undefined' !== typeof this.model && 'undefined' !== typeof this.model.get ) {
+					FusionPageBuilderApp.checkOptionDependency( fusionAllElements[ this.model.get( 'element_type' ) ], $thisEl );
+				}
+
+				FusionPageBuilderEvents.trigger( 'fusion-settings-modal-open' );
+
+				return this;
+			},
+
+			optionInit: function( $el ) {
+				var $thisEl = $el,
 					content = '',
 					view,
 					$contentTextarea,
@@ -81,9 +106,9 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					$dateTimePicker,
 					$multipleImages,
 					fetchIds = [],
-					codeMirrorJSON,
 					parentValues,
-					codeBlockLang;
+					$repeater,
+					codeMirrorJSON;
 
 				thisModel = this.model;
 
@@ -98,25 +123,23 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 
 				// Set parentValues for dependencies on child.
-				parentValues = 'undefined' !== typeof this.model.get( 'parent_values' ) ? this.model.get( 'parent_values' ) : false;
-
-				this.$el.html( this.template( { atts: this.model.attributes } ) );
-
-				$textField         = this.$el.find( '[data-placeholder]' );
-				$contentTextarea   = this.$el.find( '.fusion-editor-field' );
-				$colorPicker       = this.$el.find( '.fusion-builder-color-picker-hex' );
-				$uploadButton      = this.$el.find( '.fusion-builder-upload-button' );
-				$iconPicker        = this.$el.find( '.fusion-iconpicker' );
-				$multiselect       = this.$el.find( '.fusion-form-multiple-select' );
-				$checkboxbuttonset = this.$el.find( '.fusion-form-checkbox-button-set' );
-				$radiobuttonset    = this.$el.find( '.fusion-form-radio-button-set' );
-				$rangeSlider       = this.$el.find( '.fusion-slider-container' );
-				$selectField       = this.$el.find( '.fusion-select-field' );
-				$dimensionField    = this.$el.find( '.single-builder-dimension' );
-				$codeBlock         = this.$el.find( '.fusion-builder-code-block' );
-				$linkButton        = this.$el.find( '.fusion-builder-link-button' );
-				$dateTimePicker    = this.$el.find( '.fusion-datetime' );
-				$multipleImages    = this.$el.find( '.fusion-multiple-image-container' );
+				parentValues = ( 'undefined' !== typeof this.model.get && 'undefined' !== typeof this.model.get( 'parent_values' ) ) ? this.model.get( 'parent_values' ) : false;
+				$textField         = $thisEl.find( '[data-placeholder]' );
+				$contentTextarea   = $thisEl.find( '.fusion-editor-field' );
+				$colorPicker       = $thisEl.find( '.fusion-builder-color-picker-hex' );
+				$uploadButton      = $thisEl.find( '.fusion-builder-upload-button' );
+				$iconPicker        = $thisEl.find( '.fusion-iconpicker' );
+				$multiselect       = $thisEl.find( '.fusion-form-multiple-select' );
+				$checkboxbuttonset = $thisEl.find( '.fusion-form-checkbox-button-set' );
+				$radiobuttonset    = $thisEl.find( '.fusion-form-radio-button-set' );
+				$rangeSlider       = $thisEl.find( '.fusion-slider-container' );
+				$selectField       = $thisEl.find( '.fusion-select-field' );
+				$dimensionField    = $thisEl.find( '.single-builder-dimension' );
+				$codeBlock         = $thisEl.find( '.fusion-builder-code-block' );
+				$linkButton        = $thisEl.find( '.fusion-builder-link-button' );
+				$dateTimePicker    = $thisEl.find( '.fusion-datetime' );
+				$multipleImages    = $thisEl.find( '.fusion-multiple-image-container' );
+				$repeater          = $thisEl.find( '.fusion-builder-option.repeater' );
 
 				if ( $textField.length ) {
 					$textField.on( 'focus', function( event ) {
@@ -210,23 +233,25 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 				if ( $codeBlock.length ) {
 					$codeBlock.each( function() {
+						var codeBlockLang;
 						if ( 'undefined' === typeof wp.CodeMirror ) {
 							return;
 						}
 						codeBlockId   = $( this ).attr( 'id' );
 						codeElement   = $thisEl.find( '#' + codeBlockId );
-						codeBlockLang = $( this ).data( 'language' );
+						codeBlockLang = jQuery( this ).data( 'language' );
 
 						// Get wp.CodeMirror object json.
 						codeMirrorJSON = $thisEl.find( '.' + codeBlockId ).val();
-						codeMirrorJSON = jQuery.parseJSON( codeMirrorJSON );
-						codeMirrorJSON.lineNumbers = true;
-
+						if ( 'undefined' !== typeof codeMirrorJSON ) {
+							codeMirrorJSON = jQuery.parseJSON( codeMirrorJSON );
+							codeMirrorJSON.lineNumbers = true;
+						}
 						if ( 'undefined' !== typeof codeBlockLang && 'default' !== codeBlockLang ) {
 							codeMirrorJSON.mode = 'text/' + codeBlockLang;
 						}
 
-						FusionPageBuilderApp.codeEditor = wp.CodeMirror.fromTextArea( codeElement[0], codeMirrorJSON );
+						FusionPageBuilderApp.codeEditor = wp.CodeMirror.fromTextArea( codeElement[ 0 ], codeMirrorJSON );
 
 						// Refresh editor after initialization
 						setTimeout( function() {
@@ -251,10 +276,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 
 				if ( $selectField.length ) {
-					$selectField.chosen( {
-						width: '100%',
-						disable_search_threshold: 10
-					} );
+					$selectField.select2();
 				}
 
 				if ( $uploadButton.length ) {
@@ -279,15 +301,14 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					$multiselect.each( function() {
 
 						$placeholderText = fusionBuilderText.select_options_or_leave_blank_for_all;
-						if ( -1 !== jQuery( this ).attr( 'id' ).indexOf( 'cat_slug' ) ) {
+						if ( -1 !== jQuery( this ).attr( 'id' ).indexOf( 'cat_slug' ) || -1 !== jQuery( this ).attr( 'id' ).indexOf( 'category' ) ) {
 							$placeholderText = fusionBuilderText.select_categories_or_leave_blank_for_all;
 						} else if ( -1 !== jQuery( this ).attr( 'id' ).indexOf( 'exclude_cats' ) ) {
 							$placeholderText = fusionBuilderText.select_categories_or_leave_blank_for_none;
 						}
 
-						jQuery( this ).chosen( {
-							width: '100%',
-							placeholder_text_multiple: $placeholderText
+						jQuery( this ).select2( {
+							placeholder: $placeholderText
 						} );
 					} );
 				}
@@ -295,7 +316,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				if ( $checkboxbuttonset.length ) {
 
 					// For the visibility option check if choice is no or yes then convert to new style
-					$visibility = this.$el.find( '.fusion-form-checkbox-button-set.hide_on_mobile' );
+					$visibility = $thisEl.find( '.fusion-form-checkbox-button-set.hide_on_mobile' );
 					if ( $visibility.length ) {
 						$choice = $visibility.find( '.button-set-value' ).val();
 						if ( 'no' === $choice || '' === $choice ) {
@@ -329,13 +350,13 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				function createSlider( $slide, $targetId, $rangeInput, $min, $max, $step, $value, $decimals, $rangeDefault, $hiddenValue, $defaultValue, $direction ) {
 
 					// Create slider with values passed on in data attributes.
-					var $slider = noUiSlider.create( $rangeSlider[$slide], {
+					var $slider = noUiSlider.create( $rangeSlider[ $slide ], {
 							start: [ $value ],
 							step: $step,
 							direction: $direction,
 							range: {
-								'min': $min,
-								'max': $max
+								min: $min,
+								max: $max
 							},
 							format: wNumb( {
 								decimals: $decimals
@@ -352,7 +373,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					if ( $rangeDefault ) {
 						$rangeDefault.on( 'click', function( e ) {
 							e.preventDefault();
-							$rangeSlider[$slide].noUiSlider.set( $defaultValue );
+							$rangeSlider[ $slide ].noUiSlider.set( $defaultValue );
 							$hiddenValue.val( '' );
 							jQuery( this ).parent().addClass( 'checked' );
 						} );
@@ -362,31 +383,28 @@ var FusionPageBuilder = FusionPageBuilder || {};
 					$slider.on( 'update', function( values, handle ) {
 						if ( $rangeDefault && $notFirst ) {
 							$rangeDefault.parent().removeClass( 'checked' );
-							$hiddenValue.val( values[handle] );
+							$hiddenValue.val( values[ handle ] );
 						}
 						$notFirst = true;
-						jQuery( this.target ).closest( '.fusion-slider-container' ).prev().val( values[handle] ).trigger( 'change' );
+						jQuery( this.target ).closest( '.fusion-slider-container' ).prev().val( values[ handle ] ).trigger( 'change' );
 						$thisEl.find( '#' + $targetId ).trigger( 'change' );
 					} );
 
 					// On manual input change, update slider position.
-					$rangeInput.on( 'blur', function( values, handle ) {
+					$rangeInput.on( 'blur', function( event ) {
 
 						// If slider already has value, do nothing.
-						if ( this.value === $rangeSlider[$slide].noUiSlider.get() ) {
+						if ( this.value === $rangeSlider[ $slide ].noUiSlider.get() ) {
 							return;
 						}
-						if ( $rangeDefault ) {
-							$rangeDefault.parent().removeClass( 'checked' );
-							$hiddenValue.val( values[handle] );
-						}
 
+						// This triggers 'update' event.
 						if ( $min <= this.value && $max >= this.value ) {
-							$rangeSlider[$slide].noUiSlider.set( this.value );
+							$rangeSlider[ $slide ].noUiSlider.set( this.value );
 						} else if ( $min > this.value ) {
-							$rangeSlider[$slide].noUiSlider.set( $min );
+							$rangeSlider[ $slide ].noUiSlider.set( $min );
 						} else if ( $max < this.value ) {
-							$rangeSlider[$slide].noUiSlider.set( $max );
+							$rangeSlider[ $slide ].noUiSlider.set( $max );
 						}
 
 					} );
@@ -402,7 +420,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						if ( Math.floor( this.valueOf() ) === this.valueOf() ) {
 							return 0;
 						}
-						return this.toString().split( '.' )[1].length || 0;
+						return this.toString().split( '.' )[ 1 ].length || 0;
 					};
 
 					// Each slider on page, determine settings and create slider
@@ -443,7 +461,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				// TODO: fix for WooCommerce element.
 				if ( 'undefined' !== typeof this.model.get && 'fusion_woo_shortcodes' === this.model.get( 'element_type' ) ) {
 					if ( true === FusionPageBuilderApp.shortcodeGenerator ) {
-						this.$el.find( '#element_content' ).attr( 'id', 'generator_element_content' );
+						$thisEl.find( '#element_content' ).attr( 'id', 'generator_element_content' );
 					}
 				}
 
@@ -466,7 +484,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 							model: this,
 							el: this.$el.find( '.fusion-builder-option-advanced-module-settings' ),
 							attributes: {
-								cid: viewCID
+								cid: viewCID,
+								parentCid: this.model.get( 'cid' )
 							}
 						} );
 
@@ -475,7 +494,7 @@ var FusionPageBuilder = FusionPageBuilder || {};
 						$contentTextareaOption.before( view.render() );
 
 						if ( '' !== $contentTextarea.html() ) {
-							view.generateMultiElementChildSortables( $contentTextarea.html(), this.$el.find( '.fusion-builder-option-advanced-module-settings' ).data( 'element_type' ), fixSettingsLvl, parentAtts );
+							view.generateMultiElementChildSortables( $contentTextarea.html(), $thisEl.find( '.fusion-builder-option-advanced-module-settings' ).data( 'element_type' ), fixSettingsLvl, parentAtts );
 						}
 
 					// Standard element
@@ -543,24 +562,20 @@ var FusionPageBuilder = FusionPageBuilder || {};
 
 				}
 
+				// Init repeaters last.
+				if ( $repeater.length ) {
+					$repeater.each( function() {
+						that.initRepeater( jQuery( this ) );
+					} );
+				}
+
 				// Attachment upload alert.
-				this.$el.find( '.uploadattachment .fusion-builder-upload-button' ).on( 'click', function() {
+				$thisEl.find( '.uploadattachment .fusion-builder-upload-button' ).on( 'click', function() {
 					alert( fusionBuilderText.to_add_images );
 				} );
 
-				setTimeout( function() {
-					$thisEl.find( 'select, input, textarea, radio' ).filter( ':eq(0)' ).not( '[data-placeholder]' ).focus();
-				}, 1 );
-
 				// Range option preview
-				FusionPageBuilderApp.rangeOptionPreview( this.$el );
-
-				// Check option dependencies
-				if ( 'undefined' !== typeof this.model && 'undefined' !== typeof this.model.get ) {
-					FusionPageBuilderApp.checkOptionDependency( fusionAllElements[ this.model.get( 'element_type' ) ], this.$el, parentValues );
-				}
-
-				return this;
+				FusionPageBuilderApp.rangeOptionPreview( $thisEl );
 
 			},
 
@@ -570,8 +585,111 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				this.remove();
 			},
 
-			colorChange: function( value, self, defaultReset, customDefault ) {
-				var defaultColor = ( customDefault ) ? customDefault : self.data( 'default' );
+			initRepeater: function( $element ) {
+				var self       = this,
+					param      = $element.data( 'option-id' ),
+					option     = fusionAllElements[ this.model.get( 'element_type' ) ].params[ param ],
+					fields     = 'undefined' !== typeof option ? option.fields : {},
+					params     = this.model.get( 'params' ),
+					values     = 'undefined' !== typeof params[ param ] ? params[ param ] : '',
+					$target    = $element.find( '.repeater-rows' ),
+					rowTitle   = 'undefined' !== typeof option ? option.row_title : false,
+					rows       = false;
+
+				if ( 'string' === typeof values && '' !== values ) {
+					try {
+						if ( FusionPageBuilderApp.base64Encode( FusionPageBuilderApp.base64Decode( values ) ) === values ) {
+							values = FusionPageBuilderApp.base64Decode( values );
+							values = _.unescape( values );
+							values = JSON.parse( values );
+							rows   = true;
+						}
+					} catch ( e ) {
+						console.warn( 'Something went wrong! Error triggered - ' + e );
+					}
+				} else {
+					self.createRepeaterRow( fields, {}, $target, rowTitle );
+				}
+
+				// Create the rows for existing values.
+				if ( 'object' === typeof values && rows ) {
+					_.each( values, function( field, index ) {
+						self.createRepeaterRow( fields, values[ index ], $target, rowTitle );
+					} );
+				}
+
+				// Repeater row add click event.
+				$element.on( 'click', '.repeater-row-add', function( event ) {
+					event.preventDefault();
+					self.createRepeaterRow( fields, {}, $target, rowTitle );
+				} );
+
+				// Repeater row remove click event.
+				$element.on( 'click', '.repeater-row-remove', function( event ) {
+					event.preventDefault();
+					jQuery( this ).parents( '.repeater-row' ).first().remove();
+				} );
+
+				$element.on( 'click', '.repeater-title', function() {
+					jQuery( this ).parent().find( '.repeater-fields' ).slideToggle( 300 );
+					if ( jQuery( this ).find( '.repeater-toggle-icon' ).hasClass( 'fusiona-plus2' ) ) {
+						jQuery( this ).find( '.repeater-toggle-icon' ).removeClass( 'fusiona-plus2' ).addClass( 'fusiona-minus' );
+					} else {
+						jQuery( this ).find( '.repeater-toggle-icon' ).removeClass( 'fusiona-minus' ).addClass( 'fusiona-plus2' );
+					}
+				} );
+
+				$element.sortable( {
+					handle: '.repeater-title',
+					items: '.repeater-row',
+					cursor: 'move',
+					cancel: '.repeater-row-remove',
+					update: function() {
+					}
+				} );
+
+			},
+
+			createRepeaterRow: function( fields, values, $target, rowTitle ) {
+				var $html      = '',
+					attributes = {},
+					repeater   = FusionPageBuilder.template( jQuery( '#fusion-app-repeater-fields' ).html() ),
+					depFields  = {},
+					value;
+
+				rowTitle = 'undefined' !== typeof rowTitle && rowTitle ? rowTitle : 'Repeater Row';
+
+				$html += '<div class="repeater-row">';
+				$html += '<div class="repeater-title">';
+				$html += '<span class="repeater-toggle-icon fusiona-plus2"></span>';
+				$html += '<h3>' + rowTitle + '</h3>';
+				$html += '<span class="repeater-row-remove fusiona-plus2"></span>';
+				$html += '</div>';
+				$html += '<ul class="repeater-fields">';
+
+				_.each( fields, function( field ) {
+					value = values[ field.param_name ];
+					depFields[ field.param_name ] = field;
+					attributes = {
+						field: field,
+						value: value
+					};
+					$html += jQuery( repeater( attributes ) ).html();
+				} );
+
+				$html += '</ul>';
+				$html += '</div>';
+
+				this.optionInit( $target.append( $html ).children( 'div:last-child' ) );
+
+				// Check option dependencies
+				if ( 'undefined' !== typeof this.model && 'undefined' !== typeof this.model.get ) {
+					FusionPageBuilderApp.checkOptionDependency( fusionAllElements[ this.model.get( 'element_type' ) ], $target.children( 'div:last-child' ), false, depFields, this.$el );
+				}
+			},
+
+			colorChange: function( value, self, defaultReset ) {
+				var defaultColor = self.data( 'default' );
 
 				if ( value === defaultColor ) {
 					defaultReset.addClass( 'checked' );
@@ -586,8 +704,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 				}
 			},
 
-			colorClear: function( event, self, customDefault ) {
-				var  defaultColor = ( customDefault ) ? customDefault : self.data( 'default' );
+			colorClear: function( event, self ) {
+				var defaultColor = self.data( 'default' );
 
 				if ( null !== defaultColor ) {
 					self.val( defaultColor );
@@ -610,8 +728,8 @@ var FusionPageBuilder = FusionPageBuilder || {};
 							attachment = wp.media.attachment( id );
 							imageSizes = attachment.get( 'sizes' );
 
-							if ( 'undefined' !== typeof imageSizes['200'] ) {
-								image = imageSizes['200'].url;
+							if ( 'undefined' !== typeof imageSizes[ '200' ] ) {
+								image = imageSizes[ '200' ].url;
 							} else if ( 'undefined' !== typeof imageSizes.thumbnail ) {
 								image = imageSizes.thumbnail.url;
 							} else {
@@ -629,4 +747,4 @@ var FusionPageBuilder = FusionPageBuilder || {};
 			}
 		} );
 	} );
-} ( jQuery ) );
+}( jQuery ) );

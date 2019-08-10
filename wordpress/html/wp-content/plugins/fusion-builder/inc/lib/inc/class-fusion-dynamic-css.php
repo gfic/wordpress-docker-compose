@@ -3,18 +3,13 @@
  * Dynamic-CSS handler.
  *
  * @package Fusion-Library
- * @since 1.0.0
+ * @since 1.0
  */
-
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
 
 /**
  * Handle generating the dynamic CSS.
  *
- * @since 1.0.0
+ * @since 1.0
  */
 class Fusion_Dynamic_CSS {
 
@@ -22,7 +17,7 @@ class Fusion_Dynamic_CSS {
 	 * The one, true instance of this object.
 	 *
 	 * @access protected
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var null|object
 	 */
 	protected static $instance = null;
@@ -31,7 +26,7 @@ class Fusion_Dynamic_CSS {
 	 * The mode we'll be using (file/inline).
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var string
 	 */
 	public $mode;
@@ -39,18 +34,18 @@ class Fusion_Dynamic_CSS {
 	/**
 	 * An object containing helper methods.
 	 *
-	 * @access private
-	 * @since 1.0.0
+	 * @access protected
+	 * @since 1.0
 	 * @var null|object Fusion_Dynamic_CSS_Helpers
 	 */
-	private $helpers = null;
+	protected static $helpers = null;
 
 	/**
 	 * An instance of the Fusion_Dynamic_CSS_Inline class.
 	 * null if we're not using inline mode.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var null|object Fusion_Dynamic_CSS_Inline
 	 */
 	public $inline = null;
@@ -60,7 +55,7 @@ class Fusion_Dynamic_CSS {
 	 * null if we're not using file mode.
 	 *
 	 * @access protected
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var null|object Fusion_Dynamic_CSS_File
 	 */
 	protected $file = null;
@@ -70,7 +65,7 @@ class Fusion_Dynamic_CSS {
 	 *
 	 * @static
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var bool
 	 */
 	public static $needs_update = false;
@@ -81,7 +76,7 @@ class Fusion_Dynamic_CSS {
 	 *
 	 * @static
 	 * @access protected
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var bool
 	 */
 	protected static $disable_cache = null;
@@ -91,44 +86,75 @@ class Fusion_Dynamic_CSS {
 	 *
 	 * @static
 	 * @access private
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @var array
 	 */
-	private static $extra_files = array();
+	private static $extra_files = [];
+
+	/**
+	 * An array of CSS variables.
+	 *
+	 * @static
+	 * @access private
+	 * @since 1.0
+	 * @var array
+	 */
+	private static $css_vars = [];
+
+	/**
+	 * An array of replace patterns [search=>replace].
+	 *
+	 * @static
+	 * @access private
+	 * @since 2.0
+	 * @var array
+	 */
+	private static $replace_patterns = [];
+
+	/**
+	 * The final CSS.
+	 *
+	 * Used here as a static property to avoid multiple constly calls
+	 * to the make_css() method.
+	 *
+	 * @static
+	 * @access private
+	 * @since 2.0
+	 * @var string
+	 */
+	private static $final_css;
 
 	/**
 	 * Constructor.
 	 *
 	 * @access protected
-	 * @since 1.0.0
+	 * @since 1.0
 	 */
 	protected function __construct() {
+		self::$helpers = $this->get_helpers();
 
-		if ( null === $this->helpers ) {
-			$this->helpers = $this->get_helpers();
-		}
-
-		add_action( 'wp', array( $this, 'init' ), 999 );
+		add_action( 'wp', [ $this, 'init' ], 999 );
 
 		// When a post is saved, reset its caches to force-regenerate the CSS.
-		add_action( 'save_post', array( $this, 'reset_post_transient' ) );
-		add_action( 'save_post', array( $this, 'post_update_option' ) );
+		add_action( 'save_post', [ $this, 'reset_post_transient' ] );
+		add_action( 'save_post', [ $this, 'post_update_option' ] );
 
-		add_action( 'customize_save_after', array( $this, 'reset_all_caches' ) );
-		add_filter( 'fusion_dynamic_css', array( $this, 'add_extra_files' ) );
-		add_filter( 'fusion_dynamic_css', array( $this, 'icomoon_css' ) );
+		add_action( 'customize_save_after', [ $this, 'reset_all_caches' ] );
+		add_filter( 'fusion_dynamic_css', [ $this, 'add_extra_files' ] );
+		add_filter( 'fusion_dynamic_css', [ $this, 'icomoon_css' ] );
+		add_filter( 'fusion_dynamic_css_array', [ $this, 'add_css_vars_to_css' ], PHP_INT_MAX );
+		add_filter( 'fusion_dynamic_css_final', [ $this, 'maybe_replace_css_vars_in_styles' ], PHP_INT_MAX );
 
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_extra_files' ), 11 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_extra_files' ], 11 );
 
-		add_action( 'wp', array( $this, 'maintenance' ) );
-
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_css_vars_polyfill' ] );
 	}
 
 	/**
 	 * Gets the instance of this object.
 	 *
 	 * @static
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return object
 	 */
 	public static function get_instance() {
@@ -142,10 +168,17 @@ class Fusion_Dynamic_CSS {
 	 * Add extra actions.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return void
 	 */
 	public function init() {
+
+		// If builder frame, no need to run.
+		if ( function_exists( 'fusion_is_builder_frame' ) ) {
+			if ( fusion_is_builder_frame() ) {
+				return;
+			}
+		}
 
 		// Add options.
 		$this->add_options();
@@ -170,17 +203,18 @@ class Fusion_Dynamic_CSS {
 	 * Determine if we're using file mode or inline mode.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return void
 	 */
 	public function set_mode() {
 
 		$this->mode = 'inline';
+		$option     = Fusion_Settings::get_option_name();
 
 		// Early exit if on the customizer.
 		// This will force-using inline mode.
 		global $wp_customize;
-		if ( $wp_customize ) {
+		if ( $wp_customize || ( isset( $_GET['builder_id'] ) && get_transient( 'fusion_app_emulated-' . sanitize_text_field( wp_unslash( $_GET['builder_id'] ) . '-' . $option ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return;
 		}
 
@@ -192,8 +226,7 @@ class Fusion_Dynamic_CSS {
 
 		// Check if we're using file mode or inline mode.
 		// This simply checks the css_cache_method options.
-		$settings = Fusion_Settings::get_instance();
-		if ( 'file' === $settings->get( 'css_cache_method' ) ) {
+		if ( 'file' === fusion_library()->get_option( 'css_cache_method' ) ) {
 			$this->mode = 'file';
 		}
 
@@ -227,19 +260,28 @@ class Fusion_Dynamic_CSS {
 	}
 
 	/**
-	 * This function takes care of creating the CSS.
+	 * Creates the final CSS.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 2.0
 	 * @return string The final CSS.
 	 */
-	public function make_css() {
+	public function generate_final_css() {
 
-		// Creates the content of the CSS file.
-		// We're adding a warning at the top of the file to prevent users from editing it.
-		// The warning is then followed by the actual CSS content.
-		$content = $this->helpers->dynamic_css_cached();
-		$content = apply_filters( 'fusion_dynamic_css_final', $content );
+		if ( self::$final_css ) {
+			return self::$final_css;
+		}
+
+		$helpers         = self::$helpers;
+		self::$final_css = $helpers->get_dynamic_css();
+
+		self::$final_css = apply_filters( 'fusion_dynamic_css_cached', self::$final_css );
+
+		// Apply replace patterns.
+		$replace_patterns = self::get_replacement_patterns();
+		foreach ( $replace_patterns as $search => $replace ) {
+			self::$final_css = str_replace( $search, $replace, self::$final_css );
+		}
 
 		// When using domain-mapping plugins we have to make sure that any references to the original domain
 		// are replaced with references to the mapped domain.
@@ -250,42 +292,65 @@ class Fusion_Dynamic_CSS {
 
 				// The mapped domain of the site.
 				$mapped_domain = domain_mapping_siteurl( false );
-				$mapped_domain = str_replace( array( 'https://', 'http://' ), '//', $mapped_domain );
+				$mapped_domain = str_replace( [ 'https://', 'http://' ], '//', $mapped_domain );
 
 				// The original domain of the site.
 				$original_domain = get_original_url( 'siteurl' );
-				$original_domain = str_replace( array( 'https://', 'http://' ), '//', $original_domain );
+				$original_domain = str_replace( [ 'https://', 'http://' ], '//', $original_domain );
 
 				// Replace original domain with mapped domain.
-				$content = str_replace( $original_domain, $mapped_domain, $content );
-
+				self::$final_css = str_replace( $original_domain, $mapped_domain, self::$final_css );
 			}
 		}
 
 		// Strip protocols. This helps avoid any issues with https sites.
-		$content = str_replace( array( 'https://', 'http://' ), '//', $content );
+		self::$final_css = str_replace( [ 'https://', 'http://' ], '//', self::$final_css );
+		self::$final_css = $this->maybe_replace_css_vars_in_styles( self::$final_css );
 
-		return $content;
+		self::$final_css = apply_filters( 'fusion_dynamic_css_final', self::$final_css );
 
+		// We're adding a warning at the top of the file to prevent users from editing it.
+		// The warning is then followed by the actual CSS content.
+		self::$final_css = '/********* Compiled CSS - Do not edit *********/ ' . self::$final_css;
+
+		// Security: strips all tags to avoid closing the <style> tag and opening a <script> when using inline CSS.
+		self::$final_css = wp_strip_all_tags( self::$final_css );
+
+		return self::$final_css;
+	}
+
+	/**
+	 * This function takes care of creating the CSS.
+	 *
+	 * @access public
+	 * @since 1.0
+	 * @return string The final CSS.
+	 */
+	public function make_css() {
+		if ( ! self::$final_css || empty( self::$final_css ) ) {
+			$helpers         = self::$helpers;
+			self::$final_css = $helpers->dynamic_css_cached();
+		}
+		return self::$final_css;
 	}
 
 	/**
 	 * Reset ALL CSS transient caches.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return void
 	 */
 	public function reset_all_transients() {
 		global $wpdb;
-		$wpdb->query( "DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_fusion_dynamic_css_%'" ); // WPCS: cache ok.
+		$wpdb->query( "DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_fusion_dynamic_css_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
 	 * Reset the dynamic CSS transient for a post.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @param int $post_id The ID of the post that's being reset.
 	 */
 	public function reset_post_transient( $post_id ) {
@@ -300,7 +365,7 @@ class Fusion_Dynamic_CSS {
 	private function add_options() {
 		// The 'fusion_dynamic_css_posts' option will hold an array of posts that have had their css generated.
 		// We can use that to keep track of which pages need their CSS to be recreated and which don't.
-		add_option( 'fusion_dynamic_css_posts', array(), '', 'yes' );
+		add_option( 'fusion_dynamic_css_posts', [], '', 'yes' );
 		// The 'fusion_dynamic_css_time' option holds the time the file writer was last used.
 		add_option( 'fusion_dynamic_css_time', time(), '', 'yes' );
 	}
@@ -310,14 +375,20 @@ class Fusion_Dynamic_CSS {
 	 * This adds the current post's ID in the array of IDs that the 'fusion_dynamic_css_posts' option has.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @param int $post_id The post ID.
 	 * @return void
 	 */
 	public function post_update_option( $post_id ) {
-		$option = get_option( 'fusion_dynamic_css_posts', array() );
-		$option[ $post_id ] = false;
-		update_option( 'fusion_dynamic_css_posts', $option );
+		$options = [
+			'fusion_dynamic_css_ids',
+			'fusion_dynamic_css_posts',
+		];
+		foreach ( $options as $option_name ) {
+			$option             = get_option( $option_name, [] );
+			$option[ $post_id ] = false;
+			update_option( $option_name, $option );
+		}
 	}
 
 	/**
@@ -325,31 +396,27 @@ class Fusion_Dynamic_CSS {
 	 * This basically empties the array of page IDs from the 'fusion_dynamic_css_posts' option.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 */
 	public function global_reset_option() {
-		update_option( 'fusion_dynamic_css_posts', array() );
+		update_option( 'fusion_dynamic_css_posts', [] );
+		update_option( 'fusion_dynamic_css_ids', [] );
 	}
 
 	/**
 	 * Do we need to update the CSS file?
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return bool
 	 */
 	public function needs_update() {
 
-		global $fusion_library;
-
 		// Get the 'fusion_dynamic_css_posts' option from the DB.
-		$option = get_option( 'fusion_dynamic_css_posts', array() );
+		$option = get_option( 'fusion_dynamic_css_posts', [] );
 		// Get the current page ID.
-		$page_id = 'global';
-		if ( $fusion_library->get_page_id() ) {
-			$page_id = $fusion_library->get_page_id();
-
-		}
+		$c_page_id = fusion_library()->get_page_id();
+		$page_id   = ( $c_page_id ) ? $c_page_id : 'global';
 
 		// If the current page ID exists in the array of pages defined in the 'fusion_dynamic_css_posts' option
 		// then the page has already been compiled and we don't need to re-compile it.
@@ -361,7 +428,6 @@ class Fusion_Dynamic_CSS {
 		return self::$needs_update;
 
 	}
-
 
 	/**
 	 * There are special cases when cache should be disabled, for example: Avada is active but WPtouch plugin is used.
@@ -375,11 +441,13 @@ class Fusion_Dynamic_CSS {
 	public function is_cache_disabled() {
 
 		if ( null === self::$disable_cache ) {
-			$theme = wp_get_theme();
+			$theme               = wp_get_theme();
 			self::$disable_cache = false;
-			if ( 'Avada' === $theme->get( 'TextDomain' ) && ! class_exists( 'Avada' ) ) {
+			if ( 'Avada' === $theme->get( 'TextDomain' ) && ! class_exists( 'Avada' ) || ( function_exists( 'fusion_is_preview_frame' ) && fusion_is_preview_frame() ) ) {
 				self::$disable_cache = true;
 			}
+
+			self::$disable_cache = apply_filters( 'fusion_dynamic_cache_disabled', self::$disable_cache );
 		}
 
 		return self::$disable_cache;
@@ -390,7 +458,7 @@ class Fusion_Dynamic_CSS {
 	 * This will save in the db the last time that the compiler has run.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return void
 	 */
 	public function update_saved_time() {
@@ -402,7 +470,7 @@ class Fusion_Dynamic_CSS {
 	 * Its only job is calling the other methods from this class and reset parts of our caches.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return void
 	 */
 	public function reset_all_caches() {
@@ -414,15 +482,16 @@ class Fusion_Dynamic_CSS {
 	 * Get an instance of the Fusion_Dynamic_CSS_Helpers object.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @return object Fusion_Dynamic_CSS_Helpers
 	 */
 	public function get_helpers() {
+
 		// Instantiate the Fusion_Dynamic_CSS_Helpers object.
-		if ( null === $this->helpers ) {
-			$this->helpers = new Fusion_Dynamic_CSS_Helpers();
+		if ( null === self::$helpers ) {
+			self::$helpers = new Fusion_Dynamic_CSS_Helpers();
 		}
-		return $this->helpers;
+		return self::$helpers;
 	}
 
 	/**
@@ -452,10 +521,11 @@ class Fusion_Dynamic_CSS {
 	 * @since 1.0.6
 	 */
 	public function enqueue_extra_files() {
+		global $fusion_library_latest_version;
 
 		// Get the extra files we need to enqueue.
 		$extra_assets = get_transient( 'fusion_dynamic_css_extra_files_to_enqueue' );
-		$extra_assets = ( ! is_array( $extra_assets ) ) ? array() : $extra_assets;
+		$extra_assets = ( ! is_array( $extra_assets ) ) ? [] : $extra_assets;
 
 		// No need to proceed if $extra_assets doesn't have anything.
 		if ( empty( $extra_assets ) ) {
@@ -476,33 +546,32 @@ class Fusion_Dynamic_CSS {
 			$handle = md5( $url );
 
 			// Enqueue the style.
-			wp_enqueue_style( $handle, $url );
+			wp_enqueue_style( $handle, $url, [], $fusion_library_latest_version );
 
 		}
 	}
-
 
 	/**
 	 * Adds our extra files to the final CSS.
 	 *
 	 * @access public
-	 * @since 1.0.0
+	 * @since 1.0
 	 * @param string $css The final CSS.
 	 * @return string     The final CSS after our extra files have been added.
 	 */
 	public function add_extra_files( $css ) {
 		$extra_files  = array_unique( self::$extra_files );
-		$extra_assets = array();
+		$extra_assets = [];
 
 		$wp_filesystem = Fusion_Helper::init_filesystem();
-		$files_css  = '';
+		$files_css     = '';
 
 		foreach ( $extra_files as $url => $path ) {
 			// Get the file contents.
 			$file_contents = $wp_filesystem->get_contents( $path );
 			// If it failed, try file_get_contents().
 			if ( ! $file_contents ) {
-				$file_contents = @file_get_contents( $path );
+				$file_contents = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 			}
 			if ( $file_contents ) {
 				$files_css .= $file_contents;
@@ -515,36 +584,6 @@ class Fusion_Dynamic_CSS {
 		}
 		return $files_css . $css;
 
-	}
-
-	/**
-	 * Clean up the CSS caches once every few days.
-	 *
-	 * @access public
-	 * @since 1.0.0
-	 */
-	public function maintenance() {
-
-		$days = apply_filters( 'fusion_css_compiler_reset_days', 10 );
-
-		// If expired equals false.
-		if ( false === get_transient( 'fusion_css_cache_cleanup' ) ) {
-			$this->reset_all_caches();
-
-			// Get the root path for compiled files.
-			$upload_dir               = wp_upload_dir();
-			$root_compiled_files_path = apply_filters( 'fusion_compiler_filesystem_root_path', $upload_dir['basedir'] );
-			// Get the foldername.
-			$styles_foldername  = apply_filters( 'fusion_compiler_filesystem_folder_name', 'fusion-styles' );
-			// Delete the files/folders.
-			$folder_path   = $root_compiled_files_path . '/' . $styles_foldername;
-			$wp_filesystem = Fusion_Helper::init_filesystem();
-			$wp_filesystem->delete( $folder_path, true, 'd' );
-
-			// See you again in a few days!
-			set_transient( 'fusion_css_cache_cleanup', true, $days * DAY_IN_SECONDS );
-
-		}
 	}
 
 	/**
@@ -573,6 +612,175 @@ class Fusion_Dynamic_CSS {
 
 		return $css;
 
+	}
+
+	/**
+	 * Add a CSS Variable.
+	 *
+	 * @static
+	 * @access public
+	 * @since 2.0
+	 * @param array $args The arguments ['name'=>'','value'=>'','element'=>''].
+	 * @return void
+	 */
+	public static function add_css_var( $args ) {
+		self::$css_vars[ $args['name'] ] = $args;
+	}
+
+	/**
+	 * Adds a replace pattern.
+	 *
+	 * @static
+	 * @access public
+	 * @since 2.0
+	 * @param string $search  What to search for.
+	 * @param string $replace What to replace the search string with.
+	 * @return void
+	 */
+	public static function add_replace_pattern( $search, $replace ) {
+		self::$replace_patterns[ $search ] = $replace;
+	}
+
+	/**
+	 * Get an array of replace patterns.
+	 *
+	 * @static
+	 * @access public
+	 * @since 2.0
+	 * @return array
+	 */
+	public static function get_replacement_patterns() {
+		uksort(
+			self::$replace_patterns,
+			function( $a, $b ) {
+				return strlen( $a ) < strlen( $b );
+			}
+		);
+		return self::$replace_patterns;
+	}
+
+	/**
+	 * Add css-vars to the final CSS.
+	 *
+	 * @access public
+	 * @since 2.0
+	 * @param string $css The CSS.
+	 * @return string
+	 */
+	public function add_css_vars_to_css( $css ) {
+		$vars_styles = '';
+		$polyfill    = $this->uses_css_vars_polyfill();
+
+		foreach ( self::$css_vars as $key => $args ) {
+			if ( is_string( $key ) && ! is_array( $args['value'] ) ) {
+				$element = ( $polyfill ) ? ':root' : $args['element'];
+
+				$css['global'][ $element ][ $key ] = $args['value'];
+			}
+		}
+		return $css;
+	}
+
+	/**
+	 * Replaces all CSS-Variables in the CSS string with their values.
+	 *
+	 * @access public
+	 * @since 2.0
+	 * @param string $css The CSS.
+	 * @return string
+	 */
+	public function maybe_replace_css_vars_in_styles( $css ) {
+		$replace_vars = apply_filters( 'fusion_replace_css_var_values', true );
+
+		if ( $replace_vars ) {
+
+			$keys = array_map( 'strlen', array_keys( self::$css_vars ) );
+			array_multisort( $keys, SORT_DESC, self::$css_vars );
+
+			foreach ( self::$css_vars as $key => $args ) {
+				if ( is_string( $key ) && ! is_array( $args['value'] ) ) {
+					$css = $this->replace_css_var_in_styles( $key, $args['value'], $css );
+				}
+			}
+		}
+		return $css;
+	}
+
+	/**
+	 * Replaces a single CSS-Variable in the CSS string with their values.
+	 *
+	 * @access private
+	 * @since 2.0
+	 * @param string $var_name The variable's name.
+	 * @param string $value    The variable's value.
+	 * @param string $css      The CSS.
+	 * @return string          The modified CSS.
+	 */
+	private function replace_css_var_in_styles( $var_name, $value, $css ) {
+
+		$css = str_replace( "var($var_name)", $value, $css );
+
+		// Check if we have var(--foo,fallback) and replace them accordingly.
+		$match_counter = preg_match_all( "/var\($var_name.*\)/U", $css, $matches );
+
+		// Make sure we have matches.
+		if ( $match_counter ) {
+
+			// Make sure to only go through different fallback values.
+			$matches = array_unique( $matches[0] );
+
+			// Loop through all different fallback value instances.
+			foreach ( $matches as $match ) {
+				$replacement = $value;
+
+				// When fallbacks are vars themselves we need to add a closing ) because of the regex.
+				if ( 1 < substr_count( $match, 'var(' ) ) {
+					$match .= ')';
+				}
+
+				// If value is empty, extract the fallback.
+				if ( '' === $value ) {
+					$fallback = explode( "var($var_name,", $match );
+
+					// Remove the last trailing ) that is there because of the regex.
+					$fallback = substr( $fallback[1], 0, -1 );
+
+					$replacement = $fallback;
+				}
+
+				$css = str_replace( $match, $replacement, $css );
+			}
+		}
+
+		return $css;
+	}
+
+	/**
+	 * Determines if we're using a polyfill or not.
+	 *
+	 * @access protected
+	 * @since 2.0
+	 * @return bool
+	 */
+	protected function uses_css_vars_polyfill() {
+		$async = fusion_get_option( 'media_queries_async' );
+		$vars  = fusion_get_option( 'css_vars' );
+
+		return ( $async && ! $vars );
+	}
+
+	/**
+	 * Enqueue the CSS-Variables ponyfill.
+	 *
+	 * @access public
+	 * @since 2.0
+	 * @return void
+	 */
+	public function enqueue_css_vars_polyfill() {
+		if ( $this->uses_css_vars_polyfill() ) {
+			$scripts = fusion_library()->scripts;
+			wp_enqueue_script( 'css-vars-ponyfill', $scripts::$js_folder_url . '/library/ie11CustomProperties.js', [], '1.1.0', true );
+		}
 	}
 }
 

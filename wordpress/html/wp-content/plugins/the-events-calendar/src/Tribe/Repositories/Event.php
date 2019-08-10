@@ -5,6 +5,7 @@
  * @since 4.9
  */
 
+use Tribe__Date_Utils as Dates;
 use Tribe__Timezones as Timezones;
 
 /**
@@ -170,6 +171,25 @@ class Tribe__Events__Repositories__Event extends Tribe__Repository {
 		$this->add_simple_tax_schema_entry( 'event_category_not_in', Tribe__Events__Main::TAXONOMY, 'term_not_in' );
 		$this->add_simple_tax_schema_entry( 'tag', 'post_tag' );
 		$this->add_simple_tax_schema_entry( 'tag_not_in', 'post_tag', 'term_not_in' );
+	}
+
+	/**
+	 * {@inheritdoc}
+	 */
+	public function by_args( array $args ) {
+		/**
+		 * Some key arguments have been passed as arrays but will require unpacking.
+		 * Due to the dynamic nature of the ORM implementation this is a curated list
+		 * that should be updated here. Do not try to move this conditional unpacking logic
+		 * in the ORM: this is an issue the proxy function should handle ad-hoc.
+		 */
+		$requiring_unpack = [ 'date_overlaps', 'runs_between' ];
+		foreach ( array_intersect( array_keys( $args ), $requiring_unpack ) as $key ) {
+			$this->by( $key, ...$args[ $key ] );
+			unset( $args[ $key ] );
+		}
+
+		return parent::by_args( $args );
 	}
 
 	/**
@@ -1043,9 +1063,12 @@ class Tribe__Events__Repositories__Event extends Tribe__Repository {
 					}
 
 					$date = new DateTime( $meta_value, $timezone );
+
+					$postarr['meta_input']["_Event{$check}Date"] = $date->format( $datetime_format );
+
 					$utc_date = $date->setTimezone( $utc );
 
-					// Set the UTC date/time from local date/time and timezone; if provided override it.
+					// Set the localized and UTC date/time from local date/time and timezone; if provided override it.
 					$postarr[ 'meta_input' ][ "_Event{$check}DateUTC" ] = $utc_date->format( $datetime_format );
 					$dates_changed[ $check ]                        = $utc_date;
 				}
@@ -1075,6 +1098,15 @@ class Tribe__Events__Repositories__Event extends Tribe__Repository {
 			// Sanity check, an event should end after its start.
 			$start = $this->get_from_postarr_or_meta( $postarr, '_EventStartDate', $post_id );
 			$end   = $this->get_from_postarr_or_meta( $postarr, '_EventEndDate', $post_id );
+			$duration   = $this->get_from_postarr_or_meta( $postarr, '_EventDuration', $post_id );
+
+			if ( isset( $start, $duration ) && empty( $end ) ) {
+				// Let's work out the End from Start and Duration if not set.
+				$duration_interval = new DateInterval( 'PT' . (int) $duration . 'S' );
+				$end      = Dates::build_date_object( $start, $timezone )
+				                 ->add( $duration_interval )
+				                 ->format( $datetime_format );
+			}
 
 			$dates_make_sense = true;
 
@@ -1264,6 +1296,9 @@ class Tribe__Events__Repositories__Event extends Tribe__Repository {
 	 * {@inheritdoc}
 	 */
 	public function filter_postarr_for_create( array $postarr ) {
+		// Before checking on the meta integrity and coherency let's try to normalize it an fill the missing fields.
+		$postarr = $this->filter_meta_input( $postarr );
+
 		// Require some minimum fields.
 		if ( ! isset(
 			$postarr['post_title'],
@@ -1272,7 +1307,7 @@ class Tribe__Events__Repositories__Event extends Tribe__Repository {
 			return false;
 		}
 
-		return parent::filter_postarr_for_create( $this->filter_meta_input( $postarr ) );
+		return parent::filter_postarr_for_create( $postarr );
 	}
 
 	/**

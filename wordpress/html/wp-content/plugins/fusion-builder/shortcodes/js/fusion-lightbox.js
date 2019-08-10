@@ -6,7 +6,7 @@
 		// Generate Lightbox shortcode content
 		FusionPageBuilderApp.lightboxShortcodeFilter = function( attributes ) {
 			var $id = attributes.params.id,
-				$class = attributes.params.class,
+				$class = attributes.params[ 'class' ],
 				$title = attributes.params.description,
 				$href = ( '' === attributes.params.type ) ? attributes.params.full_image : attributes.params.video_url,
 				$src = attributes.params.thumbnail_image,

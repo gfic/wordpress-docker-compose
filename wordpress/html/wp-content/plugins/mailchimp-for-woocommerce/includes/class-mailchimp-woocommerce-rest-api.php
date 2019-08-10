@@ -15,34 +15,54 @@ class MailChimp_WooCommerce_Rest_Api
     }
 
     /**
-     * @return mixed
+     * @return array|mixed|object|WP_Error|null
+     * @throws MailChimp_WooCommerce_Error
+     * @throws MailChimp_WooCommerce_RateLimitError
+     * @throws MailChimp_WooCommerce_ServerError
      */
     public static function test()
     {
-        return wp_remote_get(static::url('ping'), array(
-            'timeout'   => 5,
-            'blocking'  => true,
-            'cookies'   => $_COOKIE,
-            'sslverify' => apply_filters('https_local_ssl_verify', false)
-        ));
+        add_filter( 'https_local_ssl_verify', '__return_false', 1 );
+
+        // allow people to change this value just in case, but default to a sensible 10 second timeout.
+        $timeout = apply_filters('mailchimp_woocommerce_test_rest_api_timeout', 10);
+
+        // just in case someone didn't return a valid timeout value, go back to the default
+        if (!is_numeric($timeout)) {
+            $timeout = 10;
+        }
+
+        return mailchimp_woocommerce_rest_api_get(
+            static::url('ping'),
+            array(
+                'timeout'   => $timeout,
+                'blocking'  => true,
+            ),
+            mailchimp_get_http_local_json_header()
+        );
     }
 
     /**
-     * Call the "work" command manually to initiate the queue.
-     *
      * @param bool $force
-     * @return mixed
+     * @return array|mixed|object|WP_Error|null
+     * @throws MailChimp_WooCommerce_Error
+     * @throws MailChimp_WooCommerce_RateLimitError
+     * @throws MailChimp_WooCommerce_ServerError
      */
     public static function work($force = false)
     {
+        add_filter( 'https_local_ssl_verify', '__return_false', 1 );
+
         $path = $force ? 'queue/work/force' : 'queue/work';
         // this is the new rest API version
-        return wp_remote_get(static::url($path), array(
-            'timeout'   => 0.01,
-            'blocking'  => false,
-            'cookies'   => $_COOKIE,
-            'sslverify' => apply_filters('https_local_ssl_verify', false)
-        ));
+        return mailchimp_woocommerce_rest_api_get(
+            static::url($path),
+            array(
+                'timeout'   => 0.01,
+                'blocking'  => false,
+            ),
+            mailchimp_get_http_local_json_header()
+        );
     }
 
     /**
@@ -215,7 +235,6 @@ class MailChimp_WooCommerce_Rest_Api
         $result = wp_remote_post(esc_url_raw($route), array(
             'timeout'   => 12,
             'blocking'  => true,
-            'sslverify' => apply_filters('https_local_ssl_verify', false),
             'method'      => 'POST',
             'data_format' => 'body',
             'headers'     => array('Content-Type' => 'application/json; charset=utf-8'),
@@ -260,7 +279,7 @@ class MailChimp_WooCommerce_Rest_Api
             'products_in_mailchimp' => $mailchimp_total_products,
             'orders_in_store' => $order_count,
             'orders_in_mailchimp' => $mailchimp_total_orders,
-            'date' => $date->format('D, M j, Y g:i A'),
+            'date' => date_i18n( __('D, M j, Y g:i A', 'mc-woocommerce'), $date->getTimestamp()),
             'has_started' => mailchimp_has_started_syncing(),
             'has_finished' => mailchimp_is_done_syncing(),
         ));

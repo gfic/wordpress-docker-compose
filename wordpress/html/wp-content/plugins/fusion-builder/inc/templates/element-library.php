@@ -1,3 +1,11 @@
+<?php
+/**
+ * An underscore.js template.
+ *
+ * @package fusion-builder
+ */
+
+?>
 <script type="text/template" id="fusion-builder-modules-template">
 	<div class="fusion-builder-modal-top-container">
 		<h2 class="fusion-builder-settings-heading">
@@ -24,14 +32,19 @@
 			<div class="fusion-tabs">
 				<div id="default-elements" class="fusion-tab-content">
 					<ul class="fusion-builder-all-modules">
-						<# _.each( modules, function(module) { #>
-							<li class="{{ module.label }} fusion-builder-element">
+						<# _.each( generator_elements, function( module ) { #>
+							<# var additionalClass = ( 'undefined' !== typeof module.generator_only ) ? ' fusion-builder-element-generator' : ''; #>
+							<li class="{{ module.label }} fusion-builder-element{{ additionalClass }}">
 								<h4 class="fusion_module_title">
-									<# if ( typeof( fusionAllElements[module.label].icon ) !== 'undefined' ) { #>
+									<# if ( 'undefined' !== typeof fusionAllElements[ module.label ].icon ) { #>
 										<div class="fusion-module-icon {{ fusionAllElements[module.label].icon }}"></div>
 									<# } #>
 									{{ module.title }}
 								</h4>
+								<# if ( 'undefined' !== typeof module.generator_only ) { #>
+									<span class="fusion-tooltip">{{ fusionBuilderText.generator_elements_tooltip }}</span>
+								<# } #>
+
 								<span class="fusion_module_label">{{ module.label }}</span>
 							</li>
 						<# } ); #>
@@ -39,12 +52,12 @@
 				</div>
 				<# if ( FusionPageBuilderApp.innerColumn == 'false' && FusionPageBuilderApp.shortcodeGenerator !== true ) { #>
 					<div id="inner-columns" class="fusion-tab-content">
-						<?php echo fusion_builder_inner_column_layouts(); // WPCS: XSS ok. ?>
+						<?php echo fusion_builder_inner_column_layouts(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 					</div>
 				<# } #>
 				<# if ( FusionPageBuilderApp.shortcodeGenerator === true ) { #>
 					<div id="default-columns" class="fusion-tab-content">
-						<?php echo fusion_builder_generator_column_layouts(); // WPCS: XSS ok. ?>
+						<?php echo fusion_builder_generator_column_layouts(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 					</div>
 				<# } #>
 				<div id="custom-elements" class="fusion-tab-content"></div>

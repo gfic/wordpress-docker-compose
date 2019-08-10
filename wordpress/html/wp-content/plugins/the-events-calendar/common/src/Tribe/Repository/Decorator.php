@@ -644,4 +644,36 @@ abstract class Tribe__Repository__Decorator implements Tribe__Repository__Interf
 	public function __call( $name, $arguments ) {
 		return call_user_func_array( [ $this->decorated, $name ], $arguments );
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function set_query( WP_Query $query ) {
+		$this->decorated->set_query( $query );
+
+		return $this;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function next() {
+		return $this->decorated->next();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function prev() {
+		return $this->decorated->prev();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function set_found_rows( $found_rows ) {
+		$this->decorated->set_found_rows( $found_rows );
+
+		return $this;
+	}
 }

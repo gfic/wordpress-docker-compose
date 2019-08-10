@@ -1,3 +1,11 @@
+<?php
+/**
+ * An underscore.js template.
+ *
+ * @package fusion-builder
+ */
+
+?>
 <script type="text/template" id="fusion-builder-app-template">
 	<div id="fusion-loader"><span class="fusion-builder-loader"></span></div>
 	<div id="content-error" title="{{{ fusionBuilderText.content_error_title }}}" style="display:none;">
@@ -26,11 +34,11 @@
 		<div class="fusion-custom-css">
 			<?php
 			$echo_custom_css = '';
-			if ( '' != $saved_custom_css ) {
+			if ( ! empty( $saved_custom_css ) ) {
 				$echo_custom_css = $saved_custom_css;
 			}
 			?>
-			<textarea name="_fusion_builder_custom_css" id="fusion-custom-css-field" placeholder="{{ fusionBuilderText.add_css_code_here }}"><?php echo $echo_custom_css; // WPCS: XSS ok. ?></textarea>
+			<textarea name="_fusion_builder_custom_css" id="fusion-custom-css-field" placeholder="{{ fusionBuilderText.add_css_code_here }}"><?php echo wp_strip_all_tags( $echo_custom_css ); // phpcs:ignore WordPress.Security.EscapeOutput ?></textarea>
 		</div>
 
 	</div>

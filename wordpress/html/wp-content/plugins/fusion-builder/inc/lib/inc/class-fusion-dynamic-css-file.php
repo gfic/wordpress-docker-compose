@@ -6,11 +6,6 @@
  * @since 1.0.0
  */
 
-// Do not allow directly accessing this file.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit( 'Direct script access denied.' );
-}
-
 /**
  * Handle generating the dynamic CSS.
  *
@@ -37,7 +32,8 @@ class Fusion_Dynamic_CSS_File {
 	public function __construct( $dynamic_css ) {
 
 		$this->dynamic_css = $dynamic_css;
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_dynamic_css' ), 11 );
+		$action            = fusion_should_defer_styles_loading() ? 'wp_body_open' : 'wp_enqueue_scripts';
+		add_action( $action, [ $this, 'enqueue_dynamic_css' ], 11 );
 
 		// Make sure file mode dynamic CSS is not created in backend.
 		if ( is_admin() ) {
@@ -76,6 +72,7 @@ class Fusion_Dynamic_CSS_File {
 	 * @return void
 	 */
 	public function enqueue_dynamic_css() {
+		global $fusion_library_latest_version;
 
 		// Nothing to enquue if the file doesn't exist.
 		// If that happens we've fallen back to inline mode (see the class's constructor).
@@ -83,8 +80,8 @@ class Fusion_Dynamic_CSS_File {
 			return;
 		}
 
-		$dependencies = apply_filters( 'fusion_dynamic_css_stylesheet_dependencies', array() );
-		wp_enqueue_style( 'fusion-dynamic-css', $this->file( 'uri' ), $dependencies );
+		$dependencies = apply_filters( 'fusion_dynamic_css_stylesheet_dependencies', [] );
+		wp_enqueue_style( 'fusion-dynamic-css', $this->file( 'uri' ), $dependencies, $fusion_library_latest_version );
 
 	}
 
@@ -108,10 +105,11 @@ class Fusion_Dynamic_CSS_File {
 			}
 		}
 
-		$fusion_library = Fusion::get_instance();
-		$page_id        = ( $fusion_library->get_page_id() ) ? $fusion_library->get_page_id() : 'global';
-
-		$file_name = "fusion{$blog_id}-{$page_id}.min.css";
+		$id        = $this->dynamic_css->get_helpers()->get_dynamic_css_id();
+		$file_name = "{$id}.min.css";
+		if ( $blog_id ) {
+			$file_name = "{$blog_id}-{$id}.min.css";
+		}
 
 		if ( 'filename' === $target ) {
 			return $file_name;
@@ -152,19 +150,16 @@ class Fusion_Dynamic_CSS_File {
 		 * has been successfully generated
 		 * and then return true.
 		 */
-		$fusion_library = Fusion::get_instance();
+		$c_page_id = fusion_library()->get_page_id();
+		$page_id   = ( $c_page_id ) ? $c_page_id : 'global';
 
-		$page_id = ( $fusion_library->get_page_id() ) ? $fusion_library->get_page_id() : 'global';
-		$option  = get_option( 'fusion_dynamic_css_posts', array() );
-
+		$option = get_option( 'fusion_dynamic_css_posts', [] );
 		// Update the 'fusion_dynamic_css_time' option.
 		$option[ $page_id ] = true;
 		update_option( 'fusion_dynamic_css_posts', $option );
 		$this->dynamic_css->update_saved_time();
 
 		// Clean-up transient.
-		$page_id = ( $fusion_library->get_page_id() ) ? $fusion_library->get_page_id() : 'global';
-
 		delete_transient( 'fusion_dynamic_css_' . $page_id );
 
 		return true;
